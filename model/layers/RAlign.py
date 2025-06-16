@@ -37,7 +37,7 @@ class RAlingLayer(torch.nn.Module):
 class RAlignGATBlock(torch.nn.Module):
     def __init__(
         self, emb_dim, heads, edge_dim, reac_batch_infos={}, reac_num_keys={},
-        prod_batch_infos={}, prod_num_keys={}, condtion_heads=None,
+        prod_batch_infos={}, prod_num_keys={}, condition_heads=None,
         dropout=0.1, negative_slope=0.2, edge_update=True
     ):
         super(RAlignGATBlock, self).__init__()
