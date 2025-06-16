@@ -60,6 +60,7 @@ class RAlignDatasetBase(torch.utils.data.Dataset):
             isprod[am2rank[x]] = True
 
         reac_mol['isprod'] = np.array(isprod, dtype=bool)
+        return reac_mol, prod_mol
 
     def __getitem__(self, index):
         msg = 'the __getitem__ is not implemented for Base Dataset'
@@ -67,4 +68,70 @@ class RAlignDatasetBase(torch.utils.data.Dataset):
 
 
 class CNYieldDataset(RAlignDatasetBase):
-	def __init__(self, reactions, ligand, catalyst, )
+    def __init__(
+        self, reactions, ligand, catalyst, base, additive,
+        labels, condition_type='pretrain'
+    ):
+        super(CNYieldDataset, self).__init__(reactions)
+        self.ligand = ligand
+        self.catalyst = catalyst
+        self.base = base
+        self.additive = additive
+        self.labels = labels
+        self.condition_type = condition_type
+
+        assert condition_type in ['pretrain', 'raw'], \
+            f'Invalid condition type {condition_type}'
+
+    def __getitem__(self, index):
+        reac_mol, prod_mol = self.get_aligned_graphs(index)
+        gf = smiles2graph if self.condition_type == 'raw' else pretrain_s2g
+        return reac_mol, prod_mol, gf(self.ligand[index]), \
+            gf(self.base[index]), gf(self.additive[index]), \
+            gf(self.catalyst[index]), self.labels[index]
+
+
+def graph_col_fn(batch):
+    batch_size, edge_idx, node_feat, edge_feat = len(batch), [], [], []
+    node_ptr,  node_batch, lstnode, isprod = [0], [], 0, []
+    max_node, is_rc = max(x['num_nodes'] for x in batch), []
+    batch_mask = torch.zeros(batch_size, max_node).bool()
+
+    for idx, gp in enumerate(batch):
+        node_cnt = gp['num_nodes']
+        if node_cnt == 0:
+            node_ptr.append(lstnode)
+            continue
+
+        node_feat.append(gp['node_feat'])
+        edge_feat.append(gp['edge_feat'])
+        edge_idx.append(gp['edge_index'] + lstnode)
+
+        if 'is_rc' in gp:
+            is_rc.append(torch.Tensor(gp['is_rc']).bool())
+        if 'isprod' in gp:
+            isprod.append(gp['isprod'])
+
+        batch_mask[idx, :node_cnt] = True
+        lstnode += node_cnt
+        node_batch.append(np.ones(node_cnt, dtype=np.int64) * idx)
+        node_ptr.append(lstnode)
+
+    result = {
+        'x': torch.from_numpy(npcat(node_feat, axis=0)),
+        "edge_attr": torch.from_numpy(npcat(edge_feat, axis=0)),
+        'ptr': torch.LongTensor(node_ptr),
+        'batch': torch.from_numpy(npcat(node_batch, axis=0)),
+        'edge_index': torch.from_numpy(npcat(edge_idx, axis=-1)),
+        'num_nodes': lstnode,
+        'batch_mask': batch_mask,
+
+    }
+
+    if len(is_rc) > 0:
+        result['is_rc'] = torch.cat(is_rc, dim=0)
+
+    if len(isprod) > 0:
+        result['is_prod'] = torch.from_numpy(npcat(isprod, axis=0))
+
+    return torch_geometric.data.Data(**result)
