@@ -124,8 +124,7 @@ def graph_col_fn(batch):
         'batch': torch.from_numpy(npcat(node_batch, axis=0)),
         'edge_index': torch.from_numpy(npcat(edge_idx, axis=-1)),
         'num_nodes': lstnode,
-        'batch_mask': batch_mask,
-
+        'batch_mask': batch_mask
     }
 
     if len(is_rc) > 0:
@@ -135,3 +134,15 @@ def graph_col_fn(batch):
         result['is_prod'] = torch.from_numpy(npcat(isprod, axis=0))
 
     return torch_geometric.data.Data(**result)
+
+
+def cn_colfn(batch):
+    reac, prod, all_conditions, lbs = [], [], [], []
+    for x in batch:
+        reac.append(x[0])
+        prod.append(x[1])
+        all_conditions.extend(x[2: -1])
+        lbs.append(x[-1])
+
+    return graph_col_fn(reac), graph_col_fn(prod), \
+        graph_col_fn(all_conditions), torch.FloatTensor(lbs)
