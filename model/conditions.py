@@ -4,10 +4,8 @@ import logging
 import torch
 import torch.nn.functional as F
 
-from GATconv import SelfLoopGATConv
-from .layers import SelfLoopGATConv, PretrainPretrainPretrainGINConv
+from .layers import SelfLoopGATConv, PretrainGINConv, graph2batch
 from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
-from model import graph2batch
 
 
 class SimpleCondGAT(torch.nn.Module):
@@ -96,7 +94,7 @@ class PretrainGIN(torch.nn.Module):
         # List of MLPs
         self.gnns = torch.nn.ModuleList()
         for layer in range(num_layer):
-            self.gnns.append(PretrainPretrainGINConv(emb_dim, aggr="add"))
+            self.gnns.append(PretrainGINConv(emb_dim, aggr="add"))
 
         # List of batchnorms
         self.batch_norms = torch.nn.ModuleList()
@@ -175,32 +173,24 @@ class NumEmbedding(torch.nn.Module):
 
 class AzConditionEncoder(torch.nn.Module):
     def __init__(
-        self, gnn, gnn_dim, num_emb_dim, num_temps=None, num_volumn=None,
-        num_sol_vol=None, use_temp=False, use_sol_vol=False, use_vol=False
+        self, gnn, gnn_dim, num_emb_dim, use_temp=False,
+        use_sol_vol=False, use_vol=False
     ):
         super(AzConditionEncoder, self).__init__()
         if use_sol_vol:
-            assert num_sol_vol is not None, 'Require para for sol_vol_encoder'
-            self.sol_volumn_encoder = NumEmbedding(num_sol_vol, num_emb_dim)
             self.sol_adapter_gamma = torch.nn.Linear(num_emb_dim, gnn_dim)
             self.sol_adapter_beta = torch.nn.Linear(num_emb_dim, gnn_dim)
         if use_vol:
-            assert num_volumn is not None, 'Require para for volumn encoder'
-            self.volumn_encoder = NumEmbedding(num_volumn, num_emb_dim)
             self.volumn_adapter_gamma = torch.nn.Linear(num_emb_dim, gnn_dim)
             self.volumn_adapter_beta = torch.nn.Linear(num_emb_dim, gnn_dim)
         if use_temp:
-            assert num_temps is not None, "Require para for temp encoder"
-            self.temperature_encoder = NumEmbedding(num_temps, num_emb_dim)
             self.temp_adapter_gamma = torch.nn.Linear(num_emb_dim, gnn_dim)
             self.temp_adapter_beta = torch.nn.Linear(num_emb_dim, gnn_dim)
-            self.temp_empty_dim = torch.nn.Parameter(torch.randn(num_emb_dim))
 
         self.gnn = gnn
         self.use_sol_vol = use_sol_vol
         self.use_vol = use_vol
         self.use_temp = use_temp
-        self.empty_embedding = torch.nn.Parameter(torch.randn(gnn_dim))
         self.empty_mol = torch.nn.Parameter(torch.randn(gnn_dim))
 
     def forward(
@@ -268,19 +258,59 @@ class AzConditionEncoder(torch.nn.Module):
 
         for k, v in answer.items():
             this_empty = ~torch.any(v['meaningful_mask'], dim=1)
-            v['meaningful_mask'][:, 0] = True
+            v['meaningful_mask'][this_empty, 0] = True
             v['embedding'][this_empty, 0] = self.empty_mol
-            v['padding_mask'] = ~v['meaningful_mask']
+            v['padding_mask'] = torch.logical_not(v['meaningful_mask'])
 
         return answer, {'temperature': temp_emb}
 
 
 class CNConditionEncoder(torch.nn.Module):
-    def __init__(self, gnn, mode='mix-all'):
+    def __init__(self, gnn_dim, gnn, mode='mix-all'):
         super(CNConditionEncoder, self).__init__()
-        self.gnn = gnn
+        self.gnn, self.mode = gnn, mode
+        self.empty_mol = torch.nn.Parameter(torch.randn(gnn_dim))
         assert mode in ['mix-all', 'mix-catalyst-ligand', 'independent'],\
             "Invalid condition output mode"
 
     def forward(self, shared_gnn):
         node_feat = self.gnn(shared_gnn)
+        node_feat = graph2batch(node_feat, shared_gnn.batch_mask)
+        key_list = ['ligand', 'base', 'additive', 'catalyst']
+        answer = {
+            key: {
+                'embedding': node_feat[idx::4],
+                'meaningful_mask': shared_gnn.batch_mask[idx::4]
+            } for idx, key in enumerate(key_list)
+        }
+
+        if self.mode == 'mix-catalyst-ligand':
+            answer['catalyst-ligand'] = {
+                'embedding': torch.cat([
+                    answer['catalyst']['embedding'],
+                    answer['ligand']['embedding']
+                ], dim=1),
+                'meaningful_mask': torch.cat([
+                    answer['catalyst']['meaningful_mask'],
+                    answer['ligand']['meaningful_mask']
+                ], dim=1)
+            }
+            del answer['catalyst']
+            del answer['ligand']
+        elif self.mode == 'mix-all':
+            all_emb = [answer[k]['embedding'] for k in key_list]
+            all_mask = [answer[k]['meaningful_mask'] for k in key_list]
+            answer = {
+                'mixed': {
+                    'embedding': torch.cat(all_emb, dim=1),
+                    'meaningful_mask': torch.cat(all_mask, dim=1)
+                }
+            }
+
+        for k, v in answer.items():
+            this_empty = ~torch.any(v['meaningful_mask'], dim=1)
+            v['meaningful_mask'][this_empty, 0] = True
+            v['embedding'][this_empty, 0] = self.empty_mol
+            v['padding_mask'] = torch.logical_not(v['meaningful_mask'])
+
+        return answer
