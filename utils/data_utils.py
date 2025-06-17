@@ -1,4 +1,7 @@
 import pandas
+import random
+import numpy as np
+import torch
 
 from .Dataset import CNYieldDataset
 
@@ -25,3 +28,10 @@ def load_cn_yield_one(data_path, part, condition_type='pretrain'):
         reactions=rxn, ligand=ligand, catalyst=catalyst, base=base,
         additive=additive, labels=out,  condition_type='pretrain'
     )
+
+
+def fix_seed(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    torch.cuda.manual_seed_all(seed)

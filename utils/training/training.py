@@ -2,6 +2,7 @@ import torch
 
 from tqdm import tqdm
 from torch.nn.functional import kl_div, mse_loss
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 from model import generate_local_global_mask
 
@@ -18,7 +19,7 @@ def warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor):
 
 def train_mol_yield(
     loader, model, optimizer, device, heads=None,
-    local_global=False, warmup=False, loss_fun='ce'
+    local_global=False, warmup=False, loss_fun='kl'
 ):
     if local_global and heads is None:
         raise ValueError("require num heads for local global mask")
@@ -57,7 +58,7 @@ def train_mol_yield(
 
 
 
-def eval_yield(loader, model, device, heads=None, local_global=False):
+def eval_mol_yield(loader, model, device, heads=None, local_global=False):
     model, ytrue, ypred = model.eval(), [], []
     for reac, prod, reag, label in tqdm(loader):
         reac, prod, reag = reac.to(device), prod.to(device), reag.to(device)
