@@ -36,3 +36,13 @@ def fix_seed(seed):
     torch.manual_seed(seed)
     np.random.seed(seed)
     torch.cuda.manual_seed_all(seed)
+
+
+def count_parameters(module):
+    total_params = 0
+    trainable_params = 0
+    for param in module.parameters():
+        total_params += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    return total_params, trainable_params

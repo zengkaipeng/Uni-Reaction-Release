@@ -7,7 +7,7 @@ import json
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 
-from utils.data_utils import load_cn_yield, fix_seed
+from utils.data_utils import load_cn_yield, fix_seed, count_parameters
 from utils.training import train_mol_yield, eval_mol_yield
 from utils.Dataset import cn_colfn
 from model import CNYieldModel, RAlignEncoder, build_cn_condition_encoder
@@ -169,12 +169,15 @@ if __name__ == '__main__':
         dim=args.dim, dropout=args.dropout, heads=args.heads
     ).to(device)
 
+    total_params, trainable_params = count_parameters(model)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     lr_sher = ExponentialLR(optimizer, gamma=args.lrgamma)
 
     log_info = {
-        'args': args.__dict__, 'train_loss': [],
-        'valid_metric': [], 'test_metric': []
+        'args': args.__dict__, 'train_loss': [], 'valid_metric': [],
+        'test_metric': [], 'total_params': total_params,
+        'trainable_params': trainable_params
     }
 
     with open(log_dir, 'w') as Fout:
