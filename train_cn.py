@@ -6,11 +6,10 @@ import json
 
 from torch.optim.lr_scheduler import ExponentialLR
 
+from model import CNYieldModel, RAlignEncoder, build_cn_condition_encoder
 from utils.data_utils import load_cn_yield, fix_seed
 from utils.training import train_mol_yield, eval_mol_yield
 from utils.Dataset import cn_colfn
-
-from model import CNYieldModel, RAlignEncoder, build_cn_condition_encoder
 
 
 def make_dir(args):
@@ -63,7 +62,7 @@ if __name__ == '__main__':
         help='the number for epochs for training'
     )
     parser.add_argument(
-        '--base_log', type=str, default='log_cn_cond_pretrain',
+        '--base_log', type=str, default='log_cn',
         help='the path for contraining log'
     )
     parser.add_argument(

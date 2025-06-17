@@ -1,10 +1,8 @@
 import torch
 
 
-from .layers import (
-    RAlignGATBlock, SelfLoopGATConv, graph2batch, SparseEdgeUpdateLayer,
-    TransDecLayer
-)
+from .layers import RAlignGATBlock, DualGATBlock, TransDecLayer
+from .utils import graph2batch
 
 
 class TranDec(torch.nn.Module):

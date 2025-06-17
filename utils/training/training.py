@@ -38,14 +38,14 @@ def train_mol_yield(
 
         res = model(reac, prod, reag, cross_mask=cross_mask)
         if loss_fun == 'kl':
-        	assert res.shape[-1] == 2, 'kl requires two outputs'
-	        res = torch.log_softmax(res, dim=-1)
-	        sm_label = torch.stack([label, 100 - label], dim=1) / 100
-	        loss = kl_div(res, sm_label, reduction='batchmean')
-	    else:
-	    	assert loss_fun == 'mse', f'Invalid loss_fun {loss_fun}'
-	    	assert res.shape[-1] == 1, 'requires single output'
-	    	loss = mse_loss(label / 100, res.squeeze(dim=-1))
+            assert res.shape[-1] == 2, 'kl requires two outputs'
+            res = torch.log_softmax(res, dim=-1)
+            sm_label = torch.stack([label, 100 - label], dim=1) / 100
+            loss = kl_div(res, sm_label, reduction='batchmean')
+        else:
+            assert loss_fun == 'mse', f'Invalid loss_fun {loss_fun}'
+            assert res.shape[-1] == 1, 'requires single output'
+            loss = mse_loss(label / 100, res.squeeze(dim=-1))
 
         loss.backward()
         optimizer.step()
@@ -55,7 +55,6 @@ def train_mol_yield(
             warmup_sher.step()
 
     return np.mean(los_cur)
-
 
 
 def eval_mol_yield(loader, model, device, heads=None, local_global=False):
@@ -70,13 +69,13 @@ def eval_mol_yield(loader, model, device, heads=None, local_global=False):
         with torch.no_grad():
             res = model(reac, prod, reag, cross_mask=cross_mask)
             if res.shape[-1] == 2:
-	            res = res.softmax(dim=-1)[:, 0] * 100
-	            ytrue.append(label.numpy())
-	            ypred.append(res.cpu().numpy())
-	        else:
-	        	res = torch.clamp(res, 0, 1) * 100
-	        	ytrue.append(label.numpy())
-	        	ypred.append(res.cpu().numpy())
+                res = res.softmax(dim=-1)[:, 0] * 100
+                ytrue.append(label.numpy())
+                ypred.append(res.cpu().numpy())
+            else:
+                res = torch.clamp(res, 0, 1) * 100
+                ytrue.append(label.numpy())
+                ypred.append(res.cpu().numpy())
 
     ypred = np.concatenate(ypred, axis=0)
     ytrue = np.concatenate(ytrue, axis=0)

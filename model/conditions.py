@@ -287,7 +287,7 @@ class CNConditionEncoder(torch.nn.Module):
         }
 
         if self.mode == 'mix-catalyst-ligand':
-            answer['catalyst-ligand'] = {
+            answer['catalyst and ligand'] = {
                 'embedding': torch.cat([
                     answer['catalyst']['embedding'],
                     answer['ligand']['embedding']

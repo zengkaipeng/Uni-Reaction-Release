@@ -1,11 +1,11 @@
-from .GATConv import SelfLoopGATConv
+from .GATconv import SelfLoopGATConv
 from .RAlign import RAlignGATBlock
-from .shared import PositionalEncoding, graph2batch, DotMhAttn
+from .shared import PositionalEncoding, DotMhAttn
 from .DualGAT import DualGATBlock
 from .TransDec import TransDecLayer
 from .pretrain_gnns import GINConv as PretrainGINConv
 
 __all__ = [
-    'SelfLoopGATConv', 'graph2batch', 'RAlignGATBlock', 'DotMhAttn',
-    'DualGATBlock', 'PositionalEncoding', 'TransDecLayer', "PretrainGINConv"
+    'SelfLoopGATConv', 'RAlignGATBlock', 'DotMhAttn', 'DualGATBlock',
+    'PositionalEncoding', 'TransDecLayer', "PretrainGINConv"
 ]
