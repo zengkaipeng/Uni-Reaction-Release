@@ -1,8 +1,9 @@
 import torch
 
-
 from .layers import RAlignGATBlock, DualGATBlock, TransDecLayer
 from .utils import graph2batch
+
+from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
 
 
 class TranDec(torch.nn.Module):
@@ -34,23 +35,24 @@ class TranDec(torch.nn.Module):
 
 class RAlignEncoder(torch.nn.Module):
     def __init__(
-        self, emb_dim, heads, edge_dim, reac_batch_infos={}, reac_num_keys={},
-        prod_batch_infos={}, prod_num_keys={}, condition_heads=None,
-        dropout=0.1, negative_slope=0.2, update_ledge=False
+        self, n_layer, emb_dim, heads, edge_dim, reac_batch_infos={},
+        reac_num_keys={}, prod_batch_infos={}, prod_num_keys={},
+        dropout=0.1, negative_slope=0.2, update_last_edge=False
     ):
         super(RAlignEncoder, self).__init__()
         self.n_layers = n_layer
         self.layers = torch.nn.ModuleList()
         for i in range(n_layer):
+            update_edge = (i < n_layer - 1) or update_last_edge
             self.layers.append(RAlignGATBlock(
                 emb_dim=emb_dim, heads=heads, edge_dim=edge_dim,
                 reac_batch_infos=reac_batch_infos, reac_num_keys=reac_num_keys,
                 prod_batch_infos=prod_batch_infos, prod_num_keys=prod_num_keys,
-                condition_heads=condition_heads, negative_slope=negative_slope,
-                dropout=dropout, edge_update=(i < n_layer - 1) or update_ledge
+                negative_slope=negative_slope, dropout=dropout,
+                edge_update=update_edge
             ))
 
-        self.update_last_edge = update_ledge
+        self.update_last_edge = update_last_edge
 
         self.atom_encoder = AtomEncoder(emb_dim)
         self.bond_encoder = BondEncoder(emb_dim)

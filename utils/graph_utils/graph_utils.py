@@ -3,6 +3,8 @@ from ogb.utils.features import (
     bond_to_feature_vector, atom_feature_vector_to_dict
 )
 import numpy as np
+import rdkit
+from rdkit import Chem
 
 
 def smiles2graph(smiles_string, with_amap=False):

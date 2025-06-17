@@ -3,6 +3,7 @@ from .GATconv import SelfLoopGATConv
 from .shared import SparseEdgeUpdateLayer
 from ..utils import graph2batch
 
+
 class RAlingLayer(torch.nn.Module):
     def __init__(self, dim, dropout=0):
         super(RAlingLayer, self).__init__()
@@ -37,21 +38,20 @@ class RAlingLayer(torch.nn.Module):
 class RAlignGATBlock(torch.nn.Module):
     def __init__(
         self, emb_dim, heads, edge_dim, reac_batch_infos={}, reac_num_keys={},
-        prod_batch_infos={}, prod_num_keys={}, condition_heads=None,
-        dropout=0.1, negative_slope=0.2, edge_update=True
+        prod_batch_infos={}, prod_num_keys={}, dropout=0.1,
+        negative_slope=0.2, edge_update=True
     ):
         super(RAlignGATBlock, self).__init__()
-        condition_heads = heads if condtion_heads is None else condtion_heads
         self.reac_batch_adapter = torch.nn.ModuleDict({
             k: torch.nn.MultiheadAttention(
-                embed_dim=emb_dim, num_heads=condition_heads,
-                batch_first=True, dropout=dropout, kdim=v, vdim=v
+                embed_dim=emb_dim, num_heads=v['heads'], dropout=dropout,
+                batch_first=True, kdim=v['dim'], vdim=v['dim']
             ) for k, v in reac_batch_infos.items()
         })
         self.prod_batch_adapter = torch.nn.ModuleDict({
             k: torch.nn.MultiheadAttention(
-                embed_dim=emb_dim, num_heads=condition_heads,
-                batch_first=True, dropout=dropout, kdim=v, vdim=v
+                embed_dim=emb_dim, num_heads=v['heads'], dropout=dropout,
+                batch_first=True, kdim=v['dim'], vdim=v['dim']
             ) for k, v in prod_batch_infos.items()
         })
         self.reac_num_adapter = torch.nn.ModuleDict({
@@ -95,11 +95,11 @@ class RAlignGATBlock(torch.nn.Module):
             self.reac_edge_ln = torch.nn.LayerNorm(emb_dim)
             self.prod_edge_ln = torch.nn.LayerNorm(emb_dim)
 
-        if len(batch_infos) > 0:
-            self.reac_cond_ln = torch.nn.LayerNorm(emb_dim)
-            self.prod_cond_ln = torch.nn.LayerNorm(emb_dim)
-        else:
-            self.reac_cond_ln = self.prod_cond_ln = None
+        self.reac_cond_ln = None if len(reac_batch_infos) == 0\
+            else torch.nn.LayerNorm(emb_dim)
+
+        self.prod_cond_ln = None if len(prod_batch_infos) == 0 \
+            else torch.nn.LayerNorm(emb_dim)
 
         self.drop_f = torch.nn.Dropout(dropout)
 
@@ -120,15 +120,15 @@ class RAlignGATBlock(torch.nn.Module):
         prod_x = self.prod_mpnn_ln(self.drop_f(prod_conv) + prod_x)
         reac_x = self.reac_mpnn_ln(self.drop_f(reac_conv) + reac_x)
 
-        reac_x = graph2batch(reac_x, reac_bmask)
-        prod_x = graph2batch(prod_x, prod_bmask)
-
-        prod_u, reac_u = self.fusion_layers(
+        prod_u, reac_u = self.fusion_layer(
             x_prod=prod_x, x_reac=reac_x, reac_mask=shared_mask
         )
 
         prod_x = self.prod_fusion_ln(self.drop_f(prod_u) + prod_x)
         reac_x = self.reac_fusion_ln(reac_x + self.drop_f(reac_u))
+
+        reac_x = graph2batch(reac_x, reac_bmask)
+        prod_x = graph2batch(prod_x, prod_bmask)
 
         reac_bias = torch.zeros_like(reac_x)
         prod_bias = torch.zeros_like(prod_x)
@@ -153,6 +153,7 @@ class RAlignGATBlock(torch.nn.Module):
 
         if self.prod_cond_ln is not None:
             prod_x = self.prod_cond_ln(prod_x + prod_bias)
+        if self.reac_cond_ln is not None:
             reac_x = self.reac_cond_ln(reac_bias + reac_x)
 
         reac_bias = torch.zeros_like(reac_x)
@@ -168,8 +169,8 @@ class RAlignGATBlock(torch.nn.Module):
             beta = v['beta'](prod_num_conditions[k])
             prod_bias += gamma * prod_x + beta
 
-        prod_x = (prod_x + prod_bias)[reac_bmask]
-        reac_x = (reac_x + reac_bias)[prod_bmask]
+        prod_x = (prod_x + prod_bias)[prod_bmask]
+        reac_x = (reac_x + reac_bias)[reac_bmask]
 
         if self.edge_update:
             reac_e_u = self.reac_ue(

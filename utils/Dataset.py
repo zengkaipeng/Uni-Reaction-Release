@@ -1,5 +1,6 @@
 import torch
 import torch_geometric
+import numpy as np
 from numpy import concatenate as npcat
 
 from .chemistry_parse import get_reaction_core
@@ -15,7 +16,7 @@ class RAlignDatasetBase(torch.utils.data.Dataset):
         return len(self.reactions)
 
     def get_aligned_graphs(self, index):
-        reac, prod = self.reactions[idx].strip().split('>>')
+        reac, prod = self.reactions[index].strip().split('>>')
         reac_rcs, prod_rcs = get_reaction_core(reac, prod)
 
         reac_mol, reac_amap = smiles2graph(reac, with_amap=True)

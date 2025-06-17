@@ -1,4 +1,5 @@
 {
+	"data_type": "pretrain",
 	"type": "pretrain",
 	"mode": "mix-all",
 	"pretrain_ckpt": "../Rcano/pretrained_weight/masking.pth",

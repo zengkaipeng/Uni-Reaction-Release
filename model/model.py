@@ -4,7 +4,7 @@ from .utils import graph2batch
 
 
 class CNYieldModel(torch.nn.Module):
-    def __init__(self, encoder, condition_encoder, emb_dim, dropout=0.1):
+    def __init__(self, encoder, condition_encoder, dim, heads, dropout=0.1):
         super(CNYieldModel, self).__init__()
         self.encoder = encoder
         self.condition_encoder = condition_encoder
@@ -26,10 +26,11 @@ class CNYieldModel(torch.nn.Module):
             Qdim=dim, Kdim=dim, Vdim=dim, Odim=dim,
             emb_dim=dim, num_heads=heads, dropout=dropout
         )
+        self.xln = torch.nn.LayerNorm(dim)
 
     def forward(self, reac_graph, prod_graph, conditions, cross_mask=None):
         condition_dict = self.condition_encoder(conditions)
-        reac_x, prod_x, _, _ = self.encoder(
+        x_reac, x_prod, _, _ = self.encoder(
             reac_graph=reac_graph, reac_batched_condition=condition_dict,
             prod_graph=prod_graph, prod_batched_condition=condition_dict
         )
@@ -43,7 +44,7 @@ class CNYieldModel(torch.nn.Module):
         pool_key = self.pool_keys.repeat(memory.shape[0], 1, 1)
         pooled_results, p_attn = self.pooler(
             query=pool_key, key=memory, value=memory,
-            key_padding_mask=memory_pad, attn_mask=cross_mask
+            key_padding_mask=memory_mask, attn_mask=cross_mask
         )
         reaction_emb = self.xln(pooled_results.squeeze(dim=1))
         return self.out_head(reaction_emb)

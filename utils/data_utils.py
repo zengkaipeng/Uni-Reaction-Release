@@ -2,14 +2,15 @@ import pandas
 import random
 import numpy as np
 import torch
+import os
 
 from .Dataset import CNYieldDataset
 
 
 def load_cn_yield(data_path, condition_type='pretrain'):
-    train_set = load_cn_yield_one(data_path, 'train')
-    val_set = load_cn_yield_one(data_path, 'val')
-    test_set = load_cn_yield_one(data_path, 'test')
+    train_set = load_cn_yield_one(data_path, 'train', condition_type)
+    val_set = load_cn_yield_one(data_path, 'val', condition_type)
+    test_set = load_cn_yield_one(data_path, 'test', condition_type)
     return train_set, val_set, test_set
 
 
@@ -26,7 +27,7 @@ def load_cn_yield_one(data_path, part, condition_type='pretrain'):
 
     return CNYieldDataset(
         reactions=rxn, ligand=ligand, catalyst=catalyst, base=base,
-        additive=additive, labels=out,  condition_type='pretrain'
+        additive=additive, labels=out,  condition_type=condition_type
     )
 
 

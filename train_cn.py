@@ -5,11 +5,12 @@ import argparse
 import json
 
 from torch.optim.lr_scheduler import ExponentialLR
+from torch.utils.data import DataLoader
 
-from model import CNYieldModel, RAlignEncoder, build_cn_condition_encoder
 from utils.data_utils import load_cn_yield, fix_seed
 from utils.training import train_mol_yield, eval_mol_yield
 from utils.Dataset import cn_colfn
+from model import CNYieldModel, RAlignEncoder, build_cn_condition_encoder
 
 
 def make_dir(args):
@@ -86,7 +87,7 @@ if __name__ == '__main__':
         help='the step to start lr decay'
     )
     parser.add_argument(
-        '--seed', type=int, default=2023,
+        '--seed', type=int, default=2025,
         help='the random seed for training'
     )
     parser.add_argument(
@@ -107,7 +108,12 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    train_set, val_set, test_set = load_cn_yield(args.data_path)
+    with open(args.condition_config) as Fin:
+        condition_config = json.load(Fin)
+
+    train_set, val_set, test_set = load_cn_yield(
+        args.data_path, condition_config['data_type']
+    )
 
     log_dir, r2_dir, mse_dir = make_dir(args)
 
@@ -126,28 +132,30 @@ if __name__ == '__main__':
         collate_fn=cn_colfn, num_workers=args.num_worker
     )
 
-    with open(args.condition_config) as Fin:
-        condition_config = json.load(Fin)
-
     if condition_config['mode'] == 'mix-all':
-        condition_infos = {'Mixed': gnn_dim}
+        condition_infos = {
+            'mixed': {
+                'dim': condition_config['dim'],
+                'heads': args.heads
+            }
+        }
     elif condition_config['mode'] == 'mix-catalyst-ligand':
         condition_infos = {
-            'additive': gnn_dim, 'base': gnn_dim,
-            'catalyst and ligand': gnn_dim
+            k: {'dim': condition_config['dim'], 'heads': args.heads}
+            for k in ['additive', 'base', 'catalyst and ligand']
         }
     else:
         condition_infos = {
-            'ligand': gnn_dim, 'additive': gnn_dim,
-            'base': gnn_dim, 'catalyst': gnn_dim
+            k: {'dim': condition_config['dim'], 'heads': args.heads}
+            for k in ['ligand', 'base', 'additive', 'catalyst']
         }
 
     encoder = RAlignEncoder(
-        emb_dim=args.dim, heads=args.heads, edge_dim=args.dim,
-        reac_batch_infos=condition_infos, reac_num_keys={},
+        n_layer=args.n_layer, emb_dim=args.dim,  edge_dim=args.dim,
+        heads=args.heads, reac_batch_infos=condition_infos,
         prod_batch_infos=condition_infos if args.condition_both else {},
-        prod_num_keys={}, condition_heads=args.heads, dropout=args.dropout,
-        negative_slope=args.negative_slope, update_ledge=False
+        prod_num_keys={}, reac_num_keys={}, dropout=args.dropout,
+        negative_slope=args.negative_slope, update_last_edge=False
     )
 
     condition_encoder = build_cn_condition_encoder(
@@ -156,7 +164,7 @@ if __name__ == '__main__':
 
     model = CNYieldModel(
         encoder=encoder, condition_encoder=condition_encoder,
-        emb_dim=args.dim, dropout=args.dropout
+        dim=args.dim, dropout=args.dropout, heads=args.heads
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -181,7 +189,7 @@ if __name__ == '__main__':
         val_results = eval_mol_yield(
             val_loader, model, device, heads=args.heads, local_global=True
         )
-        test_results = eval_yield(
+        test_results = eval_mol_yield(
             test_loader, model, device, heads=args.heads, local_global=True
         )
 
