@@ -160,8 +160,9 @@ class CNConditionEncoder(torch.nn.Module):
 
         for k, v in answer.items():
             this_empty = ~torch.any(v['meaningful_mask'], dim=1)
-            v['meaningful_mask'][this_empty, 0] = True
-            v['embedding'][this_empty, 0] = self.empty_mol
+            if torch.any(this_empty).item():
+                v['meaningful_mask'][this_empty, 0] = True
+                v['embedding'][this_empty, 0] = self.empty_mol
             v['padding_mask'] = torch.logical_not(v['meaningful_mask'])
 
         return answer

@@ -12,6 +12,8 @@ from utils.training import train_mol_yield, eval_mol_yield
 from utils.Dataset import cn_colfn
 from model import CNYieldModel, RAlignEncoder, build_cn_condition_encoder
 
+torch.autograd.set_detect_anomaly(True)
+
 
 def make_dir(args):
     timestamp = time.time()
