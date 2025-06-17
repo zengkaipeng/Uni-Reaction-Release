@@ -4,8 +4,10 @@ import logging
 import torch
 import torch.nn.functional as F
 
-from .layers import SelfLoopGATConv, PretrainGINConv, graph2batch
 from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
+
+from .layers import SelfLoopGATConv, PretrainGINConv
+from .utils import graph2batch
 
 
 class SimpleCondGAT(torch.nn.Module):
@@ -146,7 +148,7 @@ class PretrainGIN(torch.nn.Module):
             k_ = k.replace("gnn.", "")
             sd[k_] = v
 
-        msg = self.load_state_dict(sd, strict=False)
+        msg = self.load_state_dict(sd, strict=True)
 
         logging.info("Loading info: {}".format(msg))
         logging.info("load checkpoint from %s" % url_or_filename)
@@ -314,3 +316,27 @@ class CNConditionEncoder(torch.nn.Module):
             v['padding_mask'] = torch.logical_not(v['meaningful_mask'])
 
         return answer
+
+
+def build_cn_condition_encoder(config, dropout):
+    if config['type'] == 'pretrain':
+        dropout = config['arch'].get('drop_ratio', dropout)
+        config['arch']['drop_ratio'] = dropout
+        if config.get('pretrain_ckpt', '') != '':
+            gnn = PretrainGIN(num_layer=5, emb_dim=300, drop_ratio=dropout)
+            gnn.load_from_pretrained(config['pretrain_ckpt'])
+            if config['freeze_gnn']:
+                gnn.requires_grad_(False)
+            encoder = CNConditionEncoder(300, gnn, config['mode'])
+        else:
+            gnn = PretrainGIN(**config['arch'])
+            encoder = CNConditionEncoder(config['dim'], gnn, config['mode'])
+    elif config['type'] == 'gat':
+        dropout = config['arch'].get('dropout', dropout)
+        config['arch']['dropout'] = dropout
+        gnn = SimpleCondGAT(**config['arch'])
+        encoder = CNConditionEncoder(config['dim'], gnn, config['mode'])
+    else:
+        raise NotImplementedError(f'Invalid gnn type {config["type"]}')
+
+    return encoder

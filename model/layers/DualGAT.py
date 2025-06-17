@@ -1,6 +1,7 @@
 import torch
 from .GATconv import SelfLoopGATConv
-from .shared import SparseEdgeUpdateLayer, graph2batch
+from .shared import SparseEdgeUpdateLayer
+from ..utils import graph2batch
 
 
 class DualGATBlock(torch.nn.Module):

@@ -25,16 +25,6 @@ class SparseEdgeUpdateLayer(torch.nn.Module):
         return self.mlp(x)
 
 
-def graph2batch(
-    node_feat: torch.Tensor, batch_mask: torch.Tensor,
-) -> torch.Tensor:
-    batch_size, max_node = batch_mask.shape
-    answer = torch.zeros(batch_size, max_node, node_feat.shape[-1])
-    answer = answer.to(node_feat.device)
-    answer[batch_mask] = node_feat
-    return answer
-
-
 class DotMhAttn(torch.nn.Module):
     def __init__(
         self, Qdim, Kdim, Vdim, Odim, emb_dim,
@@ -90,3 +80,20 @@ class DotMhAttn(torch.nn.Module):
         return attn_o, attn_w.transpose(1, 2)
 
 
+class PositionalEncoding(torch.nn.Module):
+    def __init__(self, emb_size: int, dropout: float, maxlen: int = 2000):
+        super(PositionalEncoding, self).__init__()
+        den = torch.exp(
+            - torch.arange(0, emb_size, 2) * math.log(10000) / emb_size
+        )
+        pos = torch.arange(0, maxlen).reshape(maxlen, 1)
+        pos_embedding = torch.zeros((maxlen, emb_size))
+        pos_embedding[:, 0::2] = torch.sin(pos * den)
+        pos_embedding[:, 1::2] = torch.cos(pos * den)
+
+        self.dropout = torch.nn.Dropout(dropout)
+        self.register_buffer('pos_embedding', pos_embedding)
+
+    def forward(self, token_embedding: torch.Tensor):
+        token_len = token_embedding.shape[1]
+        return self.dropout(token_embedding + self.pos_embedding[:token_len])

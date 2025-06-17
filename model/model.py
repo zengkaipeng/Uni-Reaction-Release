@@ -1,12 +1,10 @@
 import torch
-from .layers import DotMhAttn, graph2batch
+from .layers import DotMhAttn
+from .utils import graph2batch
 
 
 class CNYieldModel(torch.nn.Module):
-    def __init__(
-        self, encoder, condition_encoder, emb_dim, out_dim,
-        dropout=0.1,
-    ):
+    def __init__(self, encoder, condition_encoder, emb_dim, dropout=0.1):
         super(CNYieldModel, self).__init__()
         self.encoder = encoder
         self.condition_encoder = condition_encoder
@@ -21,7 +19,7 @@ class CNYieldModel(torch.nn.Module):
             torch.nn.Dropout(dropout),
             torch.nn.Linear(dim, dim),
             torch.nn.GELU(),
-            torch.nn.Linear(dim, out_dim)
+            torch.nn.Linear(dim, 2)
         )
         self.pool_keys = torch.nn.Parameter(torch.randn(1, 1, dim))
         self.pooler = DotMhAttn(

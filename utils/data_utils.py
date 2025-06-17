@@ -1,3 +1,5 @@
+import pandas
+
 from .Dataset import CNYieldDataset
 
 

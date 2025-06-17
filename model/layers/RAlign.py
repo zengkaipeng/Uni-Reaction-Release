@@ -1,7 +1,7 @@
 import torch
 from .GATconv import SelfLoopGATConv
-from .shared import graph2batch, SparseEdgeUpdateLayer
-
+from .shared import SparseEdgeUpdateLayer
+from ..utils import graph2batch
 
 class RAlingLayer(torch.nn.Module):
     def __init__(self, dim, dropout=0):
