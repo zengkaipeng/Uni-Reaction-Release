@@ -5,7 +5,7 @@ from tqdm import tqdm
 from torch.nn.functional import kl_div, mse_loss
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-from model import generate_local_global_mask
+from ..tensor_utils import generate_local_global_mask
 
 
 def warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor):
