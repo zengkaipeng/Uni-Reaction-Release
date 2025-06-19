@@ -175,8 +175,16 @@ def build_cn_condition_encoder(config, dropout):
         if config.get('pretrain_ckpt', '') != '':
             gnn = PretrainGIN(num_layer=5, emb_dim=300, drop_ratio=dropout)
             gnn.load_from_pretrained(config['pretrain_ckpt'])
-            if config.get('freeze_gnn', False):
+            freeze_mode = config.get('freeze_mode', 'none')
+            if freeze_mode == 'freeze_all':
                 gnn.requires_grad_(False)
+            elif freeze_mode == 'tune_last':
+                gnn.requires_grad_(False)
+                gnn.gnns[-1].requires_grad_(True)
+                gnn.batch_norms[-1].requires_grad_(True)
+            else:
+                assert freeze_mode == 'none', \
+                    f"Invalid freeze mode {freeze_mode}"
             encoder = CNConditionEncoder(300, gnn, config['mode'])
         else:
             gnn = PretrainGIN(**config['arch'])

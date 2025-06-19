@@ -7,10 +7,10 @@ import json
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 
+from model import CNYieldModel, RAlignEncoder, build_cn_condition_encoder
 from utils.data_utils import load_cn_yield, fix_seed, count_parameters
 from utils.training import train_mol_yield, eval_mol_yield
 from utils.Dataset import cn_colfn
-from model import CNYieldModel, RAlignEncoder, build_cn_condition_encoder
 
 torch.autograd.set_detect_anomaly(True)
 
