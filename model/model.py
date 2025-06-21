@@ -1,6 +1,7 @@
 import torch
 from .layers import DotMhAttn
 from .utils import graph2batch
+from .conditions import NumEmbeddingWithNan, NumEmbedding
 from utils.tensor_utils import generate_square_subsequent_mask
 
 
@@ -347,3 +348,108 @@ class USPTO500MTModel(torch.nn.Module):
                 break
 
         return res, log_logits, belong
+
+
+class AzYieldModel(torch.nn.Module):
+    def __init__(
+        self, encoder, condition_encoder, dim, heads, dropout=0.1,
+        use_temperature=False, temperature_cls=20, use_volumn=False,
+        volumn_cls=20, use_sol_volumn=False, sol_volumn_cls=20
+    ):
+        super(AzYieldModel, self).__init__()
+        self.use_temperature = use_temperature
+        self.use_volumn = use_volumn
+        self.use_sol_volumn = use_sol_volumn
+
+        if use_temperature:
+            self.temperatures = NumEmbeddingWithNan(
+                n_cls=temperature_cls, n_dim=dim
+            )
+        if use_volumn:
+            self.volumns = NumEmbedding(n_cls=volumn_cls, n_dim=dim)
+        if use_sol_volumn:
+            self.sol_volumns = NumEmbedding(
+                n_cls=sol_volumn_cls, n_dim=dim
+            )
+
+        self.encoder = encoder
+        self.condition_encoder = condition_encoder
+        self.out_head = torch.nn.Sequential(
+            torch.nn.Linear(dim, dim),
+            torch.nn.GELU(),
+            torch.nn.Dropout(dropout),
+            torch.nn.Linear(dim, dim),
+            torch.nn.GELU(),
+            torch.nn.Linear(dim, dim),
+            torch.nn.GELU(),
+            torch.nn.Dropout(dropout),
+            torch.nn.Linear(dim, dim),
+            torch.nn.GELU(),
+            torch.nn.Linear(dim, 2)
+        )
+        self.pool_keys = torch.nn.Parameter(torch.randn(1, 1, dim))
+        self.pooler = DotMhAttn(
+            Qdim=dim, Kdim=dim, Vdim=dim, Odim=dim,
+            emb_dim=dim, num_heads=heads, dropout=dropout
+        )
+        self.xln = torch.nn.LayerNorm(dim)
+
+    def forward(
+        self, reac_graph, prod_graph, conditions, temperatures=None,
+        keys_to_volumns={}, cross_mask=None
+    ):
+        if self.use_temperature:
+            assert temperatures is not None, "Require temperature input"
+            temperature_emb = self.temperatures(temperatures)
+        else:
+            temperature_emb = None
+
+        required_keys, vol_embs = set()
+        if self.use_volumn:
+            required_keys |= set(["base", 'ligand', 'meta'])
+        if self.use_sol_volumn:
+            required_keys.add('solvent')
+
+        for k in required_keys:
+            if k != 'solvent' and self.use_volumn:
+                vol_embs[k] = self.volumns(keys_to_volumns[k])
+                required_keys.discard(k)
+            elif k == 'solvent' and self.use_sol_volumn:
+                vol_embs[k] = self.sol_volumns(keys_to_volumns[k])
+                required_keys.discard(k)
+
+        condition_dict = self.condition_encoder(
+            shared_graph=conditions, key_to_volumn_feats=vol_emb,
+            temperatures_feats=temperature_emb
+        )
+        reac_num_emb, prod_num_emb = {}, {}
+        if temperature_emb is not None:
+            reac_num_emb['temperature'] = temperature_emb[:, None]
+            prod_num_emb['temperature'] = temperature_emb[:, None]
+        if use_volumn:
+            reac_vol_emb = self.volumns(reac_graph.volumn)
+            reac_vol_emb = graph2batch(reac_vol_emb, reac_graph.batch_mask)
+            reac_num_emb['volumn'] = reac_vol_emb
+
+        x_reac, x_prod, _, _ = self.encoder(
+            reac_graph=reac_graph, 
+            reac_num_conditions=reac_num_emb,
+            reac_batched_condition=condition_dict,
+            prod_graph=prod_graph, 
+            prod_num_conditions=prod_num_emb,
+            prod_batched_condition=condition_dict
+        )
+
+        x_reac = graph2batch(x_reac, reac_graph.batch_mask)
+        x_prod = graph2batch(x_prod, prod_graph.batch_mask)
+        memory = torch.cat([x_reac, x_prod], dim=1)
+        memory_mask = [reac_graph.batch_mask, prod_graph.batch_mask]
+        memory_mask = torch.logical_not(torch.cat(memory_mask, dim=1))
+
+        pool_key = self.pool_keys.repeat(memory.shape[0], 1, 1)
+        pooled_results, p_attn = self.pooler(
+            query=pool_key, key=memory, value=memory,
+            key_padding_mask=memory_mask, attn_mask=cross_mask
+        )
+        reaction_emb = self.xln(pooled_results.squeeze(dim=1))
+        return self.out_head(reaction_emb)

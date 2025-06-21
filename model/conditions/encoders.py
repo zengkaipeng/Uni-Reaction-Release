@@ -63,7 +63,7 @@ class AzConditionEncoder(torch.nn.Module):
         ], f"Invalid merge mode {self.merge_mode}"
 
     def forward(
-        self, shared_graph, key_to_volumn_feats=None, temperatures_feats=None
+        self, shared_graph, key_to_volumn_feats={}, temperatures_feats=None
     ):
         nfeat = self.gnn(shared_graph)
         nfeat = graph2batch(nfeat, shared_graph.batch_mask)
