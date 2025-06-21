@@ -14,12 +14,26 @@ class NumEmbedding(torch.nn.Module):
             torch.nn.Linear(n_cls, n_dim)
         )
         self.noisy_training = noisy_training
+        self.n_dim = n_dim
 
     def foward(self, num_x):
         out = self.net(num_x.unsqueeze(dim=-1))
         if self.training and self.noisy_training:
             out = out + torch.randn_like(out)
         return out
+
+
+class NumEmbeddingWithNan(NumEmbedding):
+    def __init__(self, n_cls, n_dim, noisy_training=False):
+        super(NumEmbeddingWithNan, self).__init__(n_cls, n_dim, noisy_training)
+        self.nan_embedding = torch.nn.Parameter(torch.randn(n_dim))
+
+    def forward(self, num_x):
+        empty_mask, bs = torch.isnan(x), num_x.shape[0]
+        out_result = torch.zeros((bs, self.n_dim)).to(num_x)
+        out_result[~empty_mask] = self.net(num_x[~empty_mask])
+        out_result[empty_mask] = self.nan_embedding
+        return out_result
 
 
 class AzConditionEncoder(torch.nn.Module):
