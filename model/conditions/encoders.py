@@ -24,8 +24,8 @@ class NumEmbedding(torch.nn.Module):
 
 class AzConditionEncoder(torch.nn.Module):
     def __init__(
-        self, gnn, gnn_dim, num_emb_dim, use_temp=False,
-        use_sol_vol=False, use_vol=False
+        self, gnn, gnn_dim, num_emb_dim,  use_sol_vol=False,
+        use_vol=False, use_temp=False, merge_mode='independent'
     ):
         super(AzConditionEncoder, self).__init__()
         if use_sol_vol:
@@ -43,57 +43,48 @@ class AzConditionEncoder(torch.nn.Module):
         self.use_vol = use_vol
         self.use_temp = use_temp
         self.empty_mol = torch.nn.Parameter(torch.randn(gnn_dim))
+        self.merge_mode = merge_mode
+        assert self.merge_mode in [
+            'independent', 'mix-meta-ligand', 'mix-all'
+        ], f"Invalid merge mode {self.merge_mode}"
 
     def forward(
-        self, shared_graph, key_to_volumn_feats=None,
-        merge_meta_ligand=True, temperatures_feats=None
+        self, shared_graph, key_to_volumn_feats=None, temperatures_feats=None
     ):
         nfeat = self.gnn(shared_graph)
         nfeat = graph2batch(nfeat, shared_graph.batch_mask)
 
-        key_list = []
-        raise NotImplementedError('Key list not filled')
+        key_list = ['base', 'solvent', 'ligand', 'meta']
 
         if self.use_temp:
-            assert temperatures is not None, "Require temperature input"
-            temp_emb = self.temperature_encoder(temperatures)
-
-            temp_bias = self.temp_adapter_gamma(temp_emb).unsqueeze(dim=1) *\
-                nfeat + self.temp_adapter_beta(temp_emb).unsqueeze(dim=1)
+            assert temperatures_feats is not None, "Require temperature input"
+            gamma = self.temp_adapter_gamma(temperatures_feats)[:, None]
+            beta = self.temp_adapter_beta(temperatures_feats)[:, None]
+            temp_bias = gamma * nfeat + beta
         else:
-            temp_bias, temp_emb = torch.zeros_like(nfeat), None
+            temp_bias = torch.zeros_like(nfeat)
 
-        answer, xg = {}, len(key_list)
+        answer = {}
         for idx, key in enumerate(key_list):
             if self.use_vol and key != 'solvent':
                 assert key_to_volumn is not None, "Require Volumn input"
-                assert not torch.any(torch.isnan(key_to_volumn[key])),\
-                    "Nan value in volumn infos"
-                emb = self.volumn_encoder(key_to_volumn[key])  # [bs, dim]
-                bias = (
-                    self.volumn_adapter_gamma(emb).unsqueeze(dim=1) *
-                    nfeat[idx::xg] +
-                    self.volumn_adapter_beta(emb).unsqueeze(dim=1)
-                )
+                gamma = self.volumn_adapter_gamma(key_to_volumn_feats[key])
+                beta = self.volumn_adapter_beta(key_to_volumn_feats[key])
+                bias = gamma[:, None] * nfeat[idx::4] + beta[:, None]
             elif self.use_sol_vol and key == 'solvent':
                 assert key_to_volumn is not None, "Require Volumn input"
-                assert not torch.any(torch.isnan(key_to_volumn[key])),\
-                    "Nan value in solvent volumn infos"
-                emb = self.sol_volumn_encoder(key_to_volumn[key])
-                bias = (
-                    self.sol_adapter_gamma(emb).unsqueeze(dim=1) *
-                    nfeat[idx::xg] +
-                    self.sol_adapter_beta(emb).unsqueeze(dim=1)
-                )
+                gamma = self.sol_adapter_gamma(key_to_volumn_feats[key])
+                beta = self.sol_adapter_beta(key_to_volumn_feats[key])
+                bias = gamma[:, None] * nfeat[idx::4] + beta[:, None]
             else:
-                bias = torch.zeros_like(nfeat[idx::xg])
+                bias = torch.zeros_like(nfeat[idx::4])
 
-            this_emb = nfeat[idx::xg] + bias + temp_bias[idx::xg]
-            this_mask = shared_graph.batch_mask[idx::xg]
+            this_emb = nfeat[idx::4] + bias + temp_bias[idx::4]
+            this_mask = shared_graph.batch_mask[idx::4]
 
             answer[key] = {'embedding': this_emb, 'meaningful_mask': this_mask}
 
-        if merge_meta_ligand:
+        if self.merge_mode == 'mix-meta-ligand':
             answer['meta_and_ligand'] = {
                 'embedding': torch.cat([
                     answer['meta']['embedding'],
@@ -106,14 +97,26 @@ class AzConditionEncoder(torch.nn.Module):
             }
             del answer['meta']
             del answer['ligand']
+        elif self.merge_mode == 'mix-all':
+            all_emb = [answer[k]['embedding'] for k in key_list]
+            all_mask = [answer[k]['meaningful_mask'] for k in key_list]
+            answer = {
+                'mixed': {
+                    'embedding': torch.cat(all_emb, dim=1),
+                    'meaningful_mask': torch.cat(all_mask, dim=1)
+                }
+            }
+        else:
+            raise ValueError(f"Invalid merge mode {self.merge_mode}")
 
         for k, v in answer.items():
             this_empty = ~torch.any(v['meaningful_mask'], dim=1)
-            v['meaningful_mask'][this_empty, 0] = True
-            v['embedding'][this_empty, 0] = self.empty_mol
+            if torch.any(this_empty).item():
+                v['meaningful_mask'][this_empty, 0] = True
+                v['embedding'][this_empty, 0] = self.empty_mol
             v['padding_mask'] = torch.logical_not(v['meaningful_mask'])
 
-        return answer, {'temperature': temp_emb}
+        return answer
 
 
 class CNConditionEncoder(torch.nn.Module):
