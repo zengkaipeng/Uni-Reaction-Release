@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import os
 
-from .Dataset import CNYieldDataset
+from .Dataset import CNYieldDataset, AzYieldDataset
 
 
 def load_cn_yield(data_path, condition_type='pretrain'):
@@ -28,6 +28,83 @@ def load_cn_yield_one(data_path, part, condition_type='pretrain'):
     return CNYieldDataset(
         reactions=rxn, ligand=ligand, catalyst=catalyst, base=base,
         additive=additive, labels=out,  condition_type=condition_type
+    )
+
+
+def load_az_yield(
+    data_path, condition_type='pretrain', vol_type='min_as_one',
+    temperature_scale=100, solvent_vol_scale=1
+):
+    train_set = load_az_yield_one(
+        data_path=data_path, part='train', condition_type=condition_type,
+        vol_type=vol_type, temperature_scale=temperature_scale,
+        solvent_vol_scale=solvent_vol_scale
+    )
+    val_set = load_az_yield_one(
+        data_path=data_path, part='val', condition_type=condition_type,
+        vol_type=vol_type, temperature_scale=temperature_scale,
+        solvent_vol_scale=solvent_vol_scale
+    )
+    test_set = load_az_yield_one(
+        data_path=data_path, part='test', condition_type=condition_type,
+        vol_type=vol_type, temperature_scale=temperature_scale,
+        solvent_vol_scale=solvent_vol_scale
+    )
+    return train_set, val_set, test_set
+
+
+def load_az_yield_one(
+    data_path, part, condition_type='pretrain', vol_type='min_as_one',
+    temperature_scale=100, solvent_vol_scale=1
+):
+    train_x = pandas.reac_csv(os.path.join(data_path, f'{part}.csv'))
+    reac1, reac2, out, ligand, meta, base, solvent = [[] for _ in range(7)]
+    prod, ligand_vol, meta_vol, base_vol, sol_vol = [[] for _ in range(5)]
+    reac1_vol, reac2_vol, temperature = [], [], []
+    for i, x in train_x.iterrows():
+        prod.append(x['mapped_rxn'].split('>>')[1])
+        reac1.append(x['Aryl_halide_maaped'])
+        reac2.append(x['Amine_mapped'])
+        if vol_type == 'min_as_one':
+            vbase = min(x['Aryl_halide_amount'], x['Amine_amount'])
+        elif vol_type == 'absolute':
+            vbase = 1
+        else:
+            raise ValueError(f'Invalid vol type {vol_type}')
+        reac1_vol.append(x['Aryl_halide_amount'] / vbase)
+        reac2_vol.append(x['Amine_amount'] / vbase)
+        out.append(x['Yield'])
+        ligand.append(x['Ligand'])
+        ligand_vol.append(x['Ligand_amount'])
+
+        if np.isna(x['Metal']):
+            meta.append('')
+            meta_vol.append(0)
+        else:
+            meta.append(x['Metal'])
+            meta_vol.append(x['Metal_amount'] / vbase)
+
+        base.append(x['Base'])
+        base_vol.append(x['Base_amount'] / vbase)
+
+        if np.isna(x['Solvent']):
+            solvent.append('')
+            sol_vol.append(0)
+        else:
+            solvent.append(x['Solvent'])
+            sol_vol.append(x['Solvent_amount'] / solvent_vol_scale)
+
+        temperature.append(
+            float('nan') if np.isna(x['Temperature'])
+            else x['Temperature'] / temperature_scale
+        )
+
+    return AzYieldDataset(
+        mapped_reac1=reac1, mapped_reac2=reac2, mapped_prod=prod,
+        labels=out, base=base, solvent=solvent, meta=meta,
+        ligand=ligand, temperature=temperature, reac1_vol=reac1_vol,
+        reac2_vol=reac2_vol, base_vol=base_vol, solvent_vol=sol_vol,
+        meta_vol=meta_vol, ligand_vol=ligand_vol, condition_type='pretrain'
     )
 
 
