@@ -260,9 +260,8 @@ class AzYieldDataset(torch.utils.data.Dataset):
 
 
 def az_colfn(data_batch):
-    reac, prod, all_conditions, lbs = [], [], [], []
-    key_list = ['meta', 'ligand', 'solvent', 'base', 'temperature']
-    key_to_nums = {k: [] for k in key_list}
+    reac, prod, all_conditions, lbs, temp = [], [], [], [], []
+    key_to_nums = {k: [] for k in ['meta', 'ligand', 'solvent', 'base']}
     for x in batch:
         reac.append(x[0])
         prod.append(x[1])
@@ -272,11 +271,11 @@ def az_colfn(data_batch):
         key_to_nums['ligand'].append(x[7])
         key_to_nums['solvent'].append(x[8])
         key_to_nums['base'].append(x[9])
-        key_to_nums['temperature'].append(x[-2])
+        temp.append(x[-2])
 
     key_to_nums = {k: torch.FloatTensor(v) for k, v in key_to_nums.items()}
 
     return (
-        graph_col_fn(reac), graph_col_fn(prod),
-        graph_col_fn(all_conditions), key_to_nums, torch.FloatTensor(lbs)
+        graph_col_fn(reac), graph_col_fn(prod), graph_col_fn(all_conditions),
+        key_to_nums, torch.FloatTensor(temp), torch.FloatTensor(lbs)
     )

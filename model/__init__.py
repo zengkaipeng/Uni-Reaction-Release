@@ -7,5 +7,6 @@ from .conditions import (
 
 __all__ = [
     'CNYieldModel', 'build_cn_condition_encoder', 'CNConditionEncoder',
-    'NumEmbedding', 'AzConditionEncoder', 'RAlignEncoder'
+    'NumEmbedding', 'AzConditionEncoder', 'RAlignEncoder', 'AzYieldModel',
+    "build_az_condition_encoder"
 ]
