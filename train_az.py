@@ -169,31 +169,41 @@ if __name__ == '__main__':
                 'heads': args.heads
             }
         }
-    elif condition_config['mode'] == 'mix-catalyst-ligand':
+    elif condition_config['mode'] == 'mix-meta-ligand':
         condition_infos = {
             k: {'dim': condition_config['dim'], 'heads': args.heads}
-            for k in ['additive', 'base', 'catalyst and ligand']
+            for k in ['solvent', 'base', 'meta_and_ligand']
         }
     else:
         condition_infos = {
             k: {'dim': condition_config['dim'], 'heads': args.heads}
-            for k in ['ligand', 'base', 'additive', 'catalyst']
+            for k in ['ligand', 'base', 'meta', 'solvent']
         }
-    raise NotImplementedError()
+
+    reac_num_keys, prod_num_keys = {}, {}
+    if args.use_volumn:
+        reac_num_keys['volumn'] = args.dim
+    if args.use_temperature:
+        reac_num_keys['temperature'] = args.dim
+        if condition_both:
+            prod_num_keys['temperature'] = args.dim
 
     encoder = RAlignEncoder(
-        n_layer=args.n_layer, emb_dim=args.dim,  edge_dim=args.dim,
-        heads=args.heads, reac_batch_infos=condition_infos,
+        n_layer=args.n_layer, emb_dim=args.dim, edge_dim=args.dim,
         prod_batch_infos=condition_infos if args.condition_both else {},
-        prod_num_keys={}, reac_num_keys={}, dropout=args.dropout,
+        prod_num_keys=prod_num_keys, reac_batch_infos=condition_infos,
+        reac_num_keys=reac_num_keys, dropout=args.dropout, heads=args.heads,
         negative_slope=args.negative_slope, update_last_edge=False
     )
 
-    condition_encoder = build_cn_condition_encoder(
-        config=condition_config, dropout=args.dropout
+    condition_encoder = build_az_condition_encoder(
+        config=condition_config, dropout=args.dropout,
+        use_temperature=args.use_temperature,
+        use_sol_vol=args.use_solvent_volumn,
+        use_vol=args.use_volumn, num_emb_dim=args.dim
     )
 
-    model = CNYieldModel(
+    model = AzYieldModel(
         encoder=encoder, condition_encoder=condition_encoder,
         dim=args.dim, dropout=args.dropout, heads=args.heads
     ).to(device)
@@ -216,14 +226,14 @@ if __name__ == '__main__':
 
     for ep in range(args.epoch):
         print(f'[INFO] training epoch {ep}')
-        loss = train_mol_yield(
+        loss = train_az_yield(
             train_loader, model, optimizer, device, heads=args.heads,
             warmup=(ep < args.warmup), local_global=True, loss_fun='kl'
         )
-        val_results = eval_mol_yield(
+        val_results = eval_az_yield(
             val_loader, model, device, heads=args.heads, local_global=True
         )
-        test_results = eval_mol_yield(
+        test_results = eval_az_yield(
             test_loader, model, device, heads=args.heads, local_global=True
         )
 

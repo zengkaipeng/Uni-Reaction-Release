@@ -218,8 +218,7 @@ def build_cn_condition_encoder(config, dropout):
 
 
 def build_az_condition_encoder(
-    config, dropout, use_temperature, use_sol_vol, use_vol,
-    num_emb_dim
+    config, dropout, use_temperature, use_sol_vol, use_vol, num_emb_dim
 ):
     if config['type'] == 'pretrain':
         dropout = config['arch'].get('drop_ratio', dropout)
