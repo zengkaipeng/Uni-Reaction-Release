@@ -147,3 +147,44 @@ def cn_colfn(batch):
 
     return graph_col_fn(reac), graph_col_fn(prod), \
         graph_col_fn(all_conditions), torch.FloatTensor(lbs)
+
+
+class SelDataset(RAlignDatasetBase):
+    def __init__(
+        self, reactions, labels, catalyst=None, condition_type='pretrain'
+    ):
+        super(SelDataset, self).__init__(reactions)
+        self.catalyst = catalyst
+        self.labels = labels
+        self.condition_type = condition_type
+
+        assert condition_type in ['pretrain', 'raw'], \
+            f'Invalid condition type {condition_type}'
+
+    def __getitem__(self, index):
+        reac_mol, prod_mol = self.get_aligned_graphs(index)
+        gf = smiles2graph if self.condition_type == 'raw' else pretrain_s2g
+        if self.catalyst is None:
+            return reac_mol, prod_mol, self.labels[index]
+        else:
+            return reac_mol, prod_mol, gf(self.catalyst[index]), self.labels[index]
+
+def sel_with_cat_colfn(batch):
+    reac, prod, catalyst, lbs = [], [], [], []
+    for x in batch:
+        reac.append(x[0])
+        prod.append(x[1])
+        lbs.append(x[2])
+        catalyst.append(x[3])
+
+    return graph_col_fn(reac), graph_col_fn(prod), \
+            graph_col_fn(catalyst), torch.FloatTensor(lbs)
+
+def sel_wo_cat_colfn(batch):
+    reac, prod, catalyst, lbs = [], [], [], []
+    for x in batch:
+        reac.append(x[0])
+        prod.append(x[1])
+        lbs.append(x[2])
+
+    return graph_col_fn(reac), graph_col_fn(prod), torch.FloatTensor(lbs)

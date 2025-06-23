@@ -1,0 +1,8 @@
+{
+	"type": "pretrain",
+	"mode": "mix-catalyst-ligand",
+	"pretrain_ckpt": "",
+	"arch": {"emb_dim": 300, "num_layer": 5},
+	"dim": 300,
+	"data_type": "pretrain"
+}
