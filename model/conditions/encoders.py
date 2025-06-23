@@ -68,7 +68,7 @@ class AzConditionEncoder(torch.nn.Module):
         nfeat = self.gnn(shared_graph)
         nfeat = graph2batch(nfeat, shared_graph.batch_mask)
 
-        key_list = ['base', 'solvent', 'ligand', 'meta']
+        key_list = ['meta', 'ligand', 'solvent', 'base']
 
         if self.use_temp:
             assert temperatures_feats is not None, "Require temperature input"
@@ -211,6 +211,52 @@ def build_cn_condition_encoder(config, dropout):
         config['arch']['dropout'] = dropout
         gnn = SimpleCondGAT(**config['arch'])
         encoder = CNConditionEncoder(config['dim'], gnn, config['mode'])
+    else:
+        raise NotImplementedError(f'Invalid gnn type {config["type"]}')
+
+    return encoder
+
+
+def build_az_condition_encoder(
+    config, dropout, use_temperature, use_sol_vol, use_vol, num_emb_dim
+):
+    if config['type'] == 'pretrain':
+        dropout = config['arch'].get('drop_ratio', dropout)
+        config['arch']['drop_ratio'] = dropout
+        if config.get('pretrain_ckpt', '') != '':
+            gnn = PretrainGIN(num_layer=5, emb_dim=300, drop_ratio=dropout)
+            gnn.load_from_pretrained(config['pretrain_ckpt'])
+            freeze_mode = config.get('freeze_mode', 'none')
+            if freeze_mode == 'freeze_all':
+                gnn.requires_grad_(False)
+            elif freeze_mode == 'tune_last':
+                gnn.requires_grad_(False)
+                gnn.gnns[-1].requires_grad_(True)
+                gnn.batch_norms[-1].requires_grad_(True)
+            else:
+                assert freeze_mode == 'none', \
+                    f"Invalid freeze mode {freeze_mode}"
+            encoder = AzConditionEncoder(
+                gnn, gnn_dim=300, num_emb_dim=num_emb_dim,
+                use_sol_vol=use_sol_vol, use_vol=use_vol,
+                use_temp=use_temperature, merge_mode=config['mode']
+            )
+        else:
+            gnn = PretrainGIN(**config['arch'])
+            encoder = AzConditionEncoder(
+                gnn, gnn_dim=config['dim'], num_emb_dim=num_emb_dim,
+                use_sol_vol=use_sol_vol, use_vol=use_vol,
+                use_temp=use_temperature, merge_mode=config['mode']
+            )
+    elif config['type'] == 'gat':
+        dropout = config['arch'].get('dropout', dropout)
+        config['arch']['dropout'] = dropout
+        gnn = SimpleCondGAT(**config['arch'])
+        encoder = AzConditionEncoder(
+            gnn, gnn_dim=config['dim'], num_emb_dim=num_emb_dim,
+            use_sol_vol=use_sol_vol, use_vol=use_vol,
+            use_temp=use_temperature, merge_mode=config['mode']
+        )
     else:
         raise NotImplementedError(f'Invalid gnn type {config["type"]}')
 
