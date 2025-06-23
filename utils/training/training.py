@@ -86,3 +86,61 @@ def eval_mol_yield(loader, model, device, heads=None, local_global=False):
         'MSE': float(mean_squared_error(ytrue, ypred)),
         'R2': float(r2_score(ytrue, ypred))
     }
+
+
+
+def train_regression(
+    loader, model, optimizer, device, heads=None,
+    local_global=False, warmup=False
+):
+    if local_global and heads is None:
+        raise ValueError("require num heads for local global mask")
+    model, los_cur = model.train(), []
+    if warmup:
+        warmup_iters = len(loader) - 1
+        warmup_sher = warmup_lr_scheduler(optimizer, warmup_iters, 5e-2)
+
+    for reac, prod, reag, label in tqdm(loader):
+        reac, prod = reac.to(device), prod.to(device)
+        reag, label = reag.to(device), label.to(device)
+        if local_global:
+            cross_mask = generate_local_global_mask(reac, prod, 1, heads)
+        else:
+            cross_mask = None
+
+        res = model(reac, prod, reag, cross_mask=cross_mask)
+        assert res.shape[-1] == 1, 'requires single output'
+        loss = mse_loss(label, res.squeeze(dim=-1))
+
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        los_cur.append(loss.item())
+        if warmup:
+            warmup_sher.step()
+
+    return np.mean(los_cur)
+
+
+def eval_regression(loader, model, device, heads=None, local_global=False):
+    model, ytrue, ypred = model.eval(), [], []
+    for reac, prod, reag, label in tqdm(loader):
+        reac, prod, reag = reac.to(device), prod.to(device), reag.to(device)
+        if local_global:
+            cross_mask = generate_local_global_mask(reac, prod, 1, heads)
+        else:
+            cross_mask = None
+
+        with torch.no_grad():
+            res = model(reac, prod, reag, cross_mask=cross_mask)
+            ytrue.append(label.numpy())
+            ypred.append(res.cpu().numpy())
+
+    ypred = np.concatenate(ypred, axis=0)
+    ytrue = np.concatenate(ytrue, axis=0)
+
+    return {
+        'MAE': float(mean_absolute_error(ytrue, ypred)),
+        'MSE': float(mean_squared_error(ytrue, ypred)),
+        'R2': float(r2_score(ytrue, ypred))
+    }

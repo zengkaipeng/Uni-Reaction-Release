@@ -8,10 +8,10 @@ from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 
 from utils.data_utils import load_sel, fix_seed, count_parameters
-from utils.training import train_mol_yield, eval_mol_yield
-from utils.Dataset import cn_colfn
+from utils.training import train_regression, eval_regression
+from utils.Dataset import sel_with_cat_colfn
 
-from model import CNYieldModel, RAlignEncoder, build_cn_condition_encoder
+from model import RegressionModel, RAlignEncoder, build_dm_condition_encoder
 
 
 def make_dir(args):
@@ -121,17 +121,17 @@ if __name__ == '__main__':
 
     train_loader = DataLoader(
         train_set, batch_size=args.bs, shuffle=True,
-        collate_fn=cn_colfn, num_workers=args.num_worker,
+        collate_fn=sel_with_cat_colfn, num_workers=args.num_worker,
     )
 
     val_loader = DataLoader(
         val_set, batch_size=args.bs, shuffle=False,
-        collate_fn=cn_colfn, num_workers=args.num_worker
+        collate_fn=sel_with_cat_colfn, num_workers=args.num_worker
     )
 
     test_loader = DataLoader(
         test_set, batch_size=args.bs, shuffle=False,
-        collate_fn=cn_colfn, num_workers=args.num_worker
+        collate_fn=sel_with_cat_colfn, num_workers=args.num_worker
     )
 
     condition_infos = {
@@ -146,11 +146,11 @@ if __name__ == '__main__':
         negative_slope=args.negative_slope, update_last_edge=False
     )
 
-    condition_encoder = build_cn_condition_encoder(
+    condition_encoder = build_dm_condition_encoder(
         config=condition_config, dropout=args.dropout
     )
 
-    model = CNYieldModel(
+    model = RegressionModel(
         encoder=encoder, condition_encoder=condition_encoder,
         dim=args.dim, dropout=args.dropout, heads=args.heads
     ).to(device)
@@ -173,14 +173,14 @@ if __name__ == '__main__':
 
     for ep in range(args.epoch):
         print(f'[INFO] training epoch {ep}')
-        loss = train_mol_yield(
+        loss = train_regression(
             train_loader, model, optimizer, device, heads=args.heads,
-            warmup=(ep < args.warmup), local_global=True, loss_fun='kl'
+            warmup=(ep < args.warmup), local_global=True
         )
-        val_results = eval_mol_yield(
+        val_results = eval_regression(
             val_loader, model, device, heads=args.heads, local_global=True
         )
-        test_results = eval_mol_yield(
+        test_results = eval_regression(
             test_loader, model, device, heads=args.heads, local_global=True
         )
 

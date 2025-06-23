@@ -174,8 +174,8 @@ def sel_with_cat_colfn(batch):
     for x in batch:
         reac.append(x[0])
         prod.append(x[1])
-        lbs.append(x[2])
-        catalyst.append(x[3])
+        lbs.append(x[-1])
+        catalyst.append(x[2])
 
     return graph_col_fn(reac), graph_col_fn(prod), \
             graph_col_fn(catalyst), torch.FloatTensor(lbs)
