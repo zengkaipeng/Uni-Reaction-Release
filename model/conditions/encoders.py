@@ -68,7 +68,7 @@ class AzConditionEncoder(torch.nn.Module):
         nfeat = self.gnn(shared_graph)
         nfeat = graph2batch(nfeat, shared_graph.batch_mask)
 
-        key_list = ['base', 'solvent', 'ligand', 'meta']
+        key_list = ['meta', 'ligand', 'solvent', 'base']
 
         if self.use_temp:
             assert temperatures_feats is not None, "Require temperature input"

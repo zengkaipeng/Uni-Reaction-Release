@@ -432,10 +432,10 @@ class AzYieldModel(torch.nn.Module):
             reac_num_emb['volumn'] = reac_vol_emb
 
         x_reac, x_prod, _, _ = self.encoder(
-            reac_graph=reac_graph, 
+            reac_graph=reac_graph,
             reac_num_conditions=reac_num_emb,
             reac_batched_condition=condition_dict,
-            prod_graph=prod_graph, 
+            prod_graph=prod_graph,
             prod_num_conditions=prod_num_emb,
             prod_batched_condition=condition_dict
         )
