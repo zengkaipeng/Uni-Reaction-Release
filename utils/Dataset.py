@@ -253,7 +253,7 @@ class AzYieldDataset(torch.utils.data.Dataset):
         gf = smiles2graph if self.condition_type == 'raw' else pretrain_s2g
         return (
             reac_mol, prod_mol, gf(self.meta[index]), gf(self.ligand[index]),
-            gf(self.solvent[index]), gf(self.base[index]), self.meta_vol[index]
+            gf(self.solvent[index]), gf(self.base[index]), self.meta_vol[index],
             self.ligand_vol[index], self.solvent_vol[index],
             self.base_vol[index], self.temperature[index], self.labels[index]
         )
