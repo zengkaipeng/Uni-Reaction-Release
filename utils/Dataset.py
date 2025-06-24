@@ -177,19 +177,21 @@ class AzYieldDataset(torch.utils.data.Dataset):
         self.meta_vol = meta_vol
         self.ligand_vol = ligand_vol
         self.mapped_prod = mapped_prod
+        self.condition_type = condition_type
+
+        assert condition_type in ['pretrain', 'raw'], \
+            f'Invalid condition type {condition_type}'
 
     def __len__(self):
         return len(self.labels)
 
-    def process_rxn(self, reac1, reac2, prod):
+    def process_rxn(self, reac1, reac2, prod, reac1_vol, reac2_vol):
         mol_reac1 = Chem.MolFromSmiles(reac1)
         mol_reac2 = Chem.MolFromSmiles(reac2)
         reac1_atom_num = mol_reac1.GetNumAtoms()
         reac2_atom_num = mol_reac2.GetNumAtoms()
-        reac_vols_raw = (
-            [self.reac1_vol[index]] * reac1_atom_num +
-            [self.reac2_vol[index]] * reac2_atom_num
-        )
+        reac_vols_raw = [reac1_vol] * reac1_atom_num +\
+            [reac2_vol] * reac2_atom_num
 
         reac = f'{reac1}.{reac2}'
         reac_rcs, prod_rcs = get_reaction_core(reac, prod)
@@ -245,21 +247,22 @@ class AzYieldDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         reac_mol, prod_mol = self.process_rxn(
-            reac1=self.mapped_reac1[index],
-            reac2=self.mapped_reac2[index],
-            prod=self.mapped_prod[index]
+            reac1=self.mapped_reac1[index], reac2=self.mapped_reac2[index],
+            prod=self.mapped_prod[index], reac1_vol=self.reac1_vol[index],
+            reac2_vol=self.reac2_vol[index]
         )
 
         gf = smiles2graph if self.condition_type == 'raw' else pretrain_s2g
         return (
             reac_mol, prod_mol, gf(self.meta[index]), gf(self.ligand[index]),
-            gf(self.solvent[index]), gf(self.base[index]), self.meta_vol[index]
-            self.ligand_vol[index], self.solvent_vol[index],
-            self.base_vol[index], self.temperature[index], self.labels[index]
+            gf(self.solvent[index]), gf(self.base[index]),
+            self.meta_vol[index], self.ligand_vol[index],
+            self.solvent_vol[index], self.base_vol[index],
+            self.temperature[index], self.labels[index]
         )
 
 
-def az_colfn(data_batch):
+def az_colfn(batch):
     reac, prod, all_conditions, lbs, temp = [], [], [], [], []
     key_to_nums = {k: [] for k in ['meta', 'ligand', 'solvent', 'base']}
     for x in batch:

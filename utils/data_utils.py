@@ -57,7 +57,7 @@ def load_az_yield_one(
     data_path, part, condition_type='pretrain', vol_type='min_as_one',
     temperature_scale=100, solvent_vol_scale=1
 ):
-    train_x = pandas.reac_csv(os.path.join(data_path, f'{part}.csv'))
+    train_x = pandas.read_csv(os.path.join(data_path, f'{part}.csv'))
     reac1, reac2, out, ligand, meta, base, solvent = [[] for _ in range(7)]
     prod, ligand_vol, meta_vol, base_vol, sol_vol = [[] for _ in range(5)]
     reac1_vol, reac2_vol, temperature = [], [], []
@@ -77,7 +77,7 @@ def load_az_yield_one(
         ligand.append(x['Ligand'])
         ligand_vol.append(x['Ligand_amount'])
 
-        if np.isna(x['Metal']):
+        if pandas.isna(x['Metal']):
             meta.append('')
             meta_vol.append(0)
         else:
@@ -87,7 +87,7 @@ def load_az_yield_one(
         base.append(x['Base'])
         base_vol.append(x['Base_amount'] / vbase)
 
-        if np.isna(x['Solvent']):
+        if pandas.isna(x['Solvent']):
             solvent.append('')
             sol_vol.append(0)
         else:
@@ -95,7 +95,7 @@ def load_az_yield_one(
             sol_vol.append(x['Solvent_amount'] / solvent_vol_scale)
 
         temperature.append(
-            float('nan') if np.isna(x['Temperature'])
+            float('nan') if pandas.isna(x['Temperature'])
             else x['Temperature'] / temperature_scale
         )
 

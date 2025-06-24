@@ -103,6 +103,7 @@ def train_az_yield(
         reac, prod, reag, vols, temps, label = data
         reac, prod, temps = reac.to(device), prod.to(device), temps.to(device)
         reag, label = reag.to(device), label.to(device)
+        label = torch.clamp(label, 0, 100)
         vols = {k: v.to(device) for k, v in vols.items()}
 
         if local_global:
@@ -141,6 +142,7 @@ def eval_az_yield(loader, model, device, heads=None, local_global=False):
         reac, prod = reac.to(device), prod.to(device)
         reag, temps = reag.to(device), temps.to(device)
         vols = {k: v.to(device) for k, v in vols.items()}
+        label = torch.clamp(label, 0, 100)
         if local_global:
             cross_mask = generate_local_global_mask(reac, prod, 1, heads)
         else:

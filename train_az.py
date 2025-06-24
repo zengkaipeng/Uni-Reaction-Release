@@ -113,7 +113,20 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--volumn_norm', choices=['min_as_one', 'absolute'],
+        default='absolute', type=str,
         help='the method to process the volumn information'
+    )
+    parser.add_argument(
+        '--temperature_cls', default=20, type=int,
+        help='the class num for temperature encoding (default: 20)'
+    )
+    parser.add_argument(
+        '--volumn_cls', default=20, type=int,
+        help='the class num for volumn encoding (default: 20)'
+    )
+    parser.add_argument(
+        '--solvent_volumn_cls', default=20, type=int,
+        help='the class num for solvent volumn encoding (default: 20)'
     )
     parser.add_argument(
         '--temperature_scale', default=100, type=float,
@@ -122,6 +135,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--solvent_volumn_scale', default=1, type=float,
         help='the scaling for solvent volumn (default: 1)'
+    )
+    parser.add_argument(
+        '--loss', choices=['mse', 'kl'], default='kl',
+        help='the loss type for training'
     )
 
     args = parser.parse_args()
@@ -205,7 +222,12 @@ if __name__ == '__main__':
 
     model = AzYieldModel(
         encoder=encoder, condition_encoder=condition_encoder,
-        dim=args.dim, dropout=args.dropout, heads=args.heads
+        dim=args.dim, dropout=args.dropout, heads=args.heads,
+        use_temperature=args.use_temperature, use_volumn=args.use_volumn,
+        use_sol_volumn=args.use_solvent_volumn,
+        temperature_cls=args.temperature_cls,
+        volumn_cls=args.volumn_cls, sol_volumn_cls=args.solvent_volumn_cls,
+        out_dim=2 if args.loss == 'kl' else 1
     ).to(device)
 
     total_params, trainable_params = count_parameters(model)
@@ -228,7 +250,7 @@ if __name__ == '__main__':
         print(f'[INFO] training epoch {ep}')
         loss = train_az_yield(
             train_loader, model, optimizer, device, heads=args.heads,
-            warmup=(ep < args.warmup), local_global=True, loss_fun='kl'
+            warmup=(ep < args.warmup), local_global=True, loss_fun=args.loss
         )
         val_results = eval_az_yield(
             val_loader, model, device, heads=args.heads, local_global=True

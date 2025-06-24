@@ -354,7 +354,7 @@ class AzYieldModel(torch.nn.Module):
     def __init__(
         self, encoder, condition_encoder, dim, heads, dropout=0.1,
         use_temperature=False, temperature_cls=20, use_volumn=False,
-        volumn_cls=20, use_sol_volumn=False, sol_volumn_cls=20
+        volumn_cls=20, use_sol_volumn=False, sol_volumn_cls=20, out_dim=2
     ):
         super(AzYieldModel, self).__init__()
         self.use_temperature = use_temperature
@@ -362,15 +362,11 @@ class AzYieldModel(torch.nn.Module):
         self.use_sol_volumn = use_sol_volumn
 
         if use_temperature:
-            self.temperatures = NumEmbeddingWithNan(
-                n_cls=temperature_cls, n_dim=dim
-            )
+            self.temperatures = NumEmbeddingWithNan(temperature_cls, dim)
         if use_volumn:
-            self.volumns = NumEmbedding(n_cls=volumn_cls, n_dim=dim)
+            self.volumns = NumEmbedding(volumn_cls, dim)
         if use_sol_volumn:
-            self.sol_volumns = NumEmbedding(
-                n_cls=sol_volumn_cls, n_dim=dim
-            )
+            self.sol_volumns = NumEmbedding(sol_volumn_cls, dim)
 
         self.encoder = encoder
         self.condition_encoder = condition_encoder
@@ -385,7 +381,7 @@ class AzYieldModel(torch.nn.Module):
             torch.nn.Dropout(dropout),
             torch.nn.Linear(dim, dim),
             torch.nn.GELU(),
-            torch.nn.Linear(dim, 2)
+            torch.nn.Linear(dim, out_dim)
         )
         self.pool_keys = torch.nn.Parameter(torch.randn(1, 1, dim))
         self.pooler = DotMhAttn(
@@ -404,7 +400,7 @@ class AzYieldModel(torch.nn.Module):
         else:
             temperature_emb = None
 
-        required_keys, vol_embs = set()
+        required_keys, vol_embs = set(), {}
         if self.use_volumn:
             required_keys |= set(["base", 'ligand', 'meta'])
         if self.use_sol_volumn:
@@ -419,14 +415,14 @@ class AzYieldModel(torch.nn.Module):
                 required_keys.discard(k)
 
         condition_dict = self.condition_encoder(
-            shared_graph=conditions, key_to_volumn_feats=vol_emb,
+            shared_graph=conditions, key_to_volumn_feats=vol_embs,
             temperatures_feats=temperature_emb
         )
         reac_num_emb, prod_num_emb = {}, {}
         if temperature_emb is not None:
             reac_num_emb['temperature'] = temperature_emb[:, None]
             prod_num_emb['temperature'] = temperature_emb[:, None]
-        if use_volumn:
+        if self.use_volumn:
             reac_vol_emb = self.volumns(reac_graph.volumn)
             reac_vol_emb = graph2batch(reac_vol_emb, reac_graph.batch_mask)
             reac_num_emb['volumn'] = reac_vol_emb

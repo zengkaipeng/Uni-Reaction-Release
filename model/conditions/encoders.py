@@ -120,14 +120,17 @@ class AzConditionEncoder(torch.nn.Module):
                     'meaningful_mask': torch.cat(all_mask, dim=1)
                 }
             }
-        else:
-            raise ValueError(f"Invalid merge mode {self.merge_mode}")
 
         for k, v in answer.items():
             this_empty = ~torch.any(v['meaningful_mask'], dim=1)
             if torch.any(this_empty).item():
-                v['meaningful_mask'][this_empty, 0] = True
-                v['embedding'][this_empty, 0] = self.empty_mol
+                v['meaningful_mask'] = torch.cat([
+                    v['meaningful_mask'], this_empty.reshape(-1, 1)
+                ], dim=1)
+                v['embedding'] = torch.cat([
+                    v['embedding'],
+                    self.empty_mol.repeat(this_empty.shape[0], 1, 1)
+                ], dim=1)
             v['padding_mask'] = torch.logical_not(v['meaningful_mask'])
 
         return answer
@@ -178,8 +181,13 @@ class CNConditionEncoder(torch.nn.Module):
         for k, v in answer.items():
             this_empty = ~torch.any(v['meaningful_mask'], dim=1)
             if torch.any(this_empty).item():
-                v['meaningful_mask'][this_empty, 0] = True
-                v['embedding'][this_empty, 0] = self.empty_mol
+                v['meaningful_mask'] = torch.cat([
+                    v['meaningful_mask'], this_empty.reshape(-1, 1)
+                ], dim=1)
+                v['embedding'] = torch.cat([
+                    v['embedding'],
+                    self.empty_mol.repeat(this_empty.shape[0], 1, 1)
+                ], dim=1)
             v['padding_mask'] = torch.logical_not(v['meaningful_mask'])
 
         return answer
