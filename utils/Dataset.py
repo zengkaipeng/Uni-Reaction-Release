@@ -255,16 +255,10 @@ class AzYieldDataset(torch.utils.data.Dataset):
         gf = smiles2graph if self.condition_type == 'raw' else pretrain_s2g
         return (
             reac_mol, prod_mol, gf(self.meta[index]), gf(self.ligand[index]),
-<<<<<<< HEAD
             gf(self.solvent[index]), gf(self.base[index]),
             self.meta_vol[index], self.ligand_vol[index],
             self.solvent_vol[index], self.base_vol[index],
             self.temperature[index], self.labels[index]
-=======
-            gf(self.solvent[index]), gf(self.base[index]), self.meta_vol[index],
-            self.ligand_vol[index], self.solvent_vol[index],
-            self.base_vol[index], self.temperature[index], self.labels[index]
->>>>>>> b8f25d3131c077bf2d965073b888989d81c7b70a
         )
 
 
@@ -310,6 +304,7 @@ class SelDataset(RAlignDatasetBase):
         else:
             return reac_mol, prod_mol, gf(self.catalyst[index]), self.labels[index]
 
+
 def sel_with_cat_colfn(batch):
     reac, prod, catalyst, lbs = [], [], [], []
     for x in batch:
@@ -319,7 +314,8 @@ def sel_with_cat_colfn(batch):
         catalyst.append(x[2])
 
     return graph_col_fn(reac), graph_col_fn(prod), \
-            graph_col_fn(catalyst), torch.FloatTensor(lbs)
+        graph_col_fn(catalyst), torch.FloatTensor(lbs)
+
 
 def sel_wo_cat_colfn(batch):
     reac, prod, catalyst, lbs = [], [], [], []
