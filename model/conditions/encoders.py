@@ -269,3 +269,63 @@ def build_az_condition_encoder(
         raise NotImplementedError(f'Invalid gnn type {config["type"]}')
 
     return encoder
+
+
+class DMConditionEncoder(torch.nn.Module):
+    def __init__(self, gnn_dim, gnn, mode='default'):
+        super(DMConditionEncoder, self).__init__()
+        self.gnn, self.mode = gnn, mode
+        self.empty_mol = torch.nn.Parameter(torch.randn(gnn_dim))
+        assert mode in ['default'],\
+            "Invalid condition output mode"
+
+    def forward(self, shared_gnn):
+        node_feat = self.gnn(shared_gnn)
+        node_feat = graph2batch(node_feat, shared_gnn.batch_mask)
+        answer = {
+            'catalyst': {
+                'embedding': node_feat,
+                'meaningful_mask': shared_gnn.batch_mask
+            }
+        }
+
+        for k, v in answer.items():
+            this_empty = ~torch.any(v['meaningful_mask'], dim=1)
+            if torch.any(this_empty).item():
+                v['meaningful_mask'][this_empty, 0] = True
+                v['embedding'][this_empty, 0] = self.empty_mol
+            v['padding_mask'] = torch.logical_not(v['meaningful_mask'])
+
+        return answer
+
+
+def build_dm_condition_encoder(config, dropout):
+    if config['type'] == 'pretrain':
+        dropout = config['arch'].get('drop_ratio', dropout)
+        config['arch']['drop_ratio'] = dropout
+        if config.get('pretrain_ckpt', '') != '':
+            gnn = PretrainGIN(num_layer=5, emb_dim=300, drop_ratio=dropout)
+            gnn.load_from_pretrained(config['pretrain_ckpt'])
+            freeze_mode = config.get('freeze_mode', 'none')
+            if freeze_mode == 'freeze_all':
+                gnn.requires_grad_(False)
+            elif freeze_mode == 'tune_last':
+                gnn.requires_grad_(False)
+                gnn.gnns[-1].requires_grad_(True)
+                gnn.batch_norms[-1].requires_grad_(True)
+            else:
+                assert freeze_mode == 'none', \
+                    f"Invalid freeze mode {freeze_mode}"
+            encoder = DMConditionEncoder(300, gnn, config['mode'])
+        else:
+            gnn = PretrainGIN(**config['arch'])
+            encoder = DMConditionEncoder(config['dim'], gnn, config['mode'])
+    elif config['type'] == 'gat':
+        dropout = config['arch'].get('dropout', dropout)
+        config['arch']['dropout'] = dropout
+        gnn = SimpleCondGAT(**config['arch'])
+        encoder = DMConditionEncoder(config['dim'], gnn, config['mode'])
+    else:
+        raise NotImplementedError(f'Invalid gnn type {config["type"]}')
+
+    return encoder
