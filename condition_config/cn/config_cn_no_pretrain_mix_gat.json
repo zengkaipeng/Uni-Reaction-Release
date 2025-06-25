@@ -1,5 +1,5 @@
 {
-	"data_type": "pretrain",
+	"data_type": "raw",
 	"type": "gat",
 	"mode": "mix-all",
 	"pretrain_ckpt": "",

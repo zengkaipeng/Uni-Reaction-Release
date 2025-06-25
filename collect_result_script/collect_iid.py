@@ -17,7 +17,8 @@ if __name__ == '__main__':
     input_file = args.input
 
     # os walking
-    specific_args = ['dim', 'heads', 'n_layer', 'dropout', 'lr', 'seed', 'condition_config', 'condition_both']
+    # specific_args = ['dim', 'heads', 'n_layer', 'dropout', 'lr', 'seed', 'condition_config', 'condition_both']
+    exclude_args = ['data_path', 'base_log']
     # all_exps = ['FullCV_01', 'FullCV_02', 'FullCV_03', 'FullCV_04', 'FullCV_05',
     #             'FullCV_06', 'FullCV_07', 'FullCV_08', 'FullCV_09', 'FullCV_10']
     best_by = args.best_by
@@ -31,11 +32,10 @@ if __name__ == '__main__':
             exp_dataset = args['data_path'].split('/')[-1]
             if not re.match(iid_marker, exp_dataset):
                 continue
-            specific_args_val = [args[arg] for arg in specific_args]
-            model_tag = ';'.join([f"{arg}={val}" for arg, val in zip(specific_args, specific_args_val)])
+            model_tag = ';'.join([f"{arg}={val}" for arg, val in args.items() if arg not in exclude_args])
             if model_tag not in all_model_result:
                 all_model_result[model_tag] = {}
-                all_model_result[model_tag]['args'] = specific_args_val
+                all_model_result[model_tag]['args'] = args
                 all_model_result[model_tag]['test_metric'] = {}
                 all_model_result[model_tag]['best_ep'] = {}
 
@@ -51,10 +51,14 @@ if __name__ == '__main__':
         exit(0)
     # convert to DataFrame
     keep_cols = []
-    for i, col in enumerate(specific_args):
+    one_model_name = list(all_model_result.keys())[0]
+    all_args = [col for col in all_model_result[one_model_name]['args'] if col not in exclude_args]
+    for col in all_args:
+        if col in exclude_args:
+            continue
         all_values = set()
         for k, v in all_model_result.items():
-            all_values.add(v['args'][i])
+            all_values.add(v['args'][col])
         if len(all_values) > 1:
             keep_cols.append(col)
     
@@ -65,14 +69,14 @@ if __name__ == '__main__':
         'RMSE': []
     }
     for old_tag, val in all_model_result.items():
-        args_val = val['args']
+        args_dict = val['args']
         # item = {'model_tag': ';'.join([f"{c}={args}" )}
-        mol_tag_dict = {col: args_val[specific_args.index(col)] for col in keep_cols}
+        mol_tag_dict = {col: args_dict[col] for col in keep_cols}
         new_tag = ';'.join([f"{k}={v}" for k, v in mol_tag_dict.items()])
         item = {'model_tag': new_tag}
 
         item.update(
-            dict(zip(specific_args, args_val))  # Add specific args
+            {k: args_dict[k] for k in all_args}
         )
 
         for m in record.keys():
@@ -80,7 +84,10 @@ if __name__ == '__main__':
             this_exp_all_metric = []
             best_eps = [ep for dataset, ep in val['best_ep'].items()]
             item_cp['avg_best_ep'] = np.mean(best_eps)
-            for dataset, metric in val['test_metric'].items():
+            all_datesets = list(val['test_metric'].keys())
+            all_datesets.sort()
+            for dataset in all_datesets:
+                metric = val['test_metric'][dataset]
                 if m == 'RMSE':
                     this_exp_metrix = np.sqrt(metric['MSE'])
                 else:
@@ -92,4 +99,7 @@ if __name__ == '__main__':
             record[m].append(item_cp)
     for m in record.keys():
         df = pd.DataFrame(record[m])
+        # sort by tag
+        df.sort_values(by=['model_tag'], inplace=True)
         df.to_csv(osp.join(input_file, f"{m}_best_by_{best_by}.csv"), index=False)
+    print(f"Results collected and saved in {input_file}.")
