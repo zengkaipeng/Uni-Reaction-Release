@@ -6,6 +6,7 @@ import os
 
 from .Dataset import CNYieldDataset, AzYieldDataset, SelDataset
 
+
 def load_sel(data_path, condition_type='pretrain'):
     train_set = load_sel_one(data_path, 'train', condition_type)
     val_set = load_sel_one(data_path, 'val', condition_type)
@@ -25,6 +26,7 @@ def load_sel_one(data_path, part, condition_type='pretrain'):
         reactions=rxn, catalyst=catalyst, labels=out,
         condition_type=condition_type
     )
+
 
 def load_cn_yield(data_path, condition_type='pretrain'):
     train_set = load_cn_yield_one(data_path, 'train', condition_type)
@@ -59,11 +61,18 @@ def load_az_yield(
         vol_type=vol_type, temperature_scale=temperature_scale,
         solvent_vol_scale=solvent_vol_scale
     )
-    val_set = load_az_yield_one(
-        data_path=data_path, part='val', condition_type=condition_type,
-        vol_type=vol_type, temperature_scale=temperature_scale,
-        solvent_vol_scale=solvent_vol_scale
-    )
+    if os.path.exists(os.path.join(data_path, 'val.csv')):
+        val_set = load_az_yield_one(
+            data_path=data_path, part='val', condition_type=condition_type,
+            vol_type=vol_type, temperature_scale=temperature_scale,
+            solvent_vol_scale=solvent_vol_scale
+        )
+    else:
+        val_set = load_az_yield_one(
+            data_path=data_path, part='train', condition_type=condition_type,
+            vol_type=vol_type, temperature_scale=temperature_scale,
+            solvent_vol_scale=solvent_vol_scale
+        )
     test_set = load_az_yield_one(
         data_path=data_path, part='test', condition_type=condition_type,
         vol_type=vol_type, temperature_scale=temperature_scale,
