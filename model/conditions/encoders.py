@@ -201,12 +201,17 @@ def build_cn_condition_encoder(config, dropout):
             gnn = PretrainGIN(num_layer=5, emb_dim=300, drop_ratio=dropout)
             gnn.load_from_pretrained(config['pretrain_ckpt'])
             freeze_mode = config.get('freeze_mode', 'none')
-            if freeze_mode == 'freeze_all':
+            if freeze_mode.starts_with('freeze'):
+                freeze_layer = int(freeze_mode.split('-')[1])
+                assert freeze_layer < 5, \
+                    "last layer norm changed, finetune required"
                 gnn.requires_grad_(False)
-            elif freeze_mode == 'tune_last':
-                gnn.requires_grad_(False)
-                gnn.gnns[-1].requires_grad_(True)
-                gnn.batch_norms[-1].requires_grad_(True)
+                for x in range(freeze_layer):
+                    gnn.batch_norms[x].eval()
+
+                for x in range(freeze_layer, 5):
+                    gnn.batch_norms[x].requires_grad_(True)
+                    gnn.gnns[x].requires_grad_(True)
             else:
                 assert freeze_mode == 'none', \
                     f"Invalid freeze mode {freeze_mode}"
@@ -235,12 +240,17 @@ def build_az_condition_encoder(
             gnn = PretrainGIN(num_layer=5, emb_dim=300, drop_ratio=dropout)
             gnn.load_from_pretrained(config['pretrain_ckpt'])
             freeze_mode = config.get('freeze_mode', 'none')
-            if freeze_mode == 'freeze_all':
+            if freeze_mode.starts_with('freeze'):
+                freeze_layer = int(freeze_mode.split('-')[1])
+                assert freeze_layer < 5, \
+                    "last layer norm changed, finetune required"
                 gnn.requires_grad_(False)
-            elif freeze_mode == 'tune_last':
-                gnn.requires_grad_(False)
-                gnn.gnns[-1].requires_grad_(True)
-                gnn.batch_norms[-1].requires_grad_(True)
+                for x in range(freeze_layer):
+                    gnn.batch_norms[x].eval()
+
+                for x in range(freeze_layer, 5):
+                    gnn.batch_norms[x].requires_grad_(True)
+                    gnn.gnns[x].requires_grad_(True)
             else:
                 assert freeze_mode == 'none', \
                     f"Invalid freeze mode {freeze_mode}"
