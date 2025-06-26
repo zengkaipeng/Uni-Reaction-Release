@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     # os walking
     # specific_args = ['dim', 'heads', 'n_layer', 'dropout', 'lr', 'seed', 'condition_config', 'condition_both']
-    exclude_args = ['data_path', 'base_log']
+    exclude_args = ['data_path', 'base_log', 'log_dir']
     # all_exps = ['FullCV_01', 'FullCV_02', 'FullCV_03', 'FullCV_04', 'FullCV_05',
     #             'FullCV_06', 'FullCV_07', 'FullCV_08', 'FullCV_09', 'FullCV_10']
     best_by = args.best_by
@@ -29,6 +29,7 @@ if __name__ == '__main__':
             with open(osp.join(root, 'log.json'), 'r') as f:
                 log = json.load(f)
             args = log['args']
+            args.update({'log_dir': root})
             exp_dataset = args['data_path'].split('/')[-1]
             if not re.match(iid_marker, exp_dataset):
                 continue
@@ -52,7 +53,7 @@ if __name__ == '__main__':
     # convert to DataFrame
     keep_cols = []
     one_model_name = list(all_model_result.keys())[0]
-    all_args = [col for col in all_model_result[one_model_name]['args'] if col not in exclude_args]
+    all_args = [col for col in all_model_result[one_model_name]['args'] if col not in set(exclude_args) - set(['log_dir'])]
     for col in all_args:
         if col in exclude_args:
             continue
