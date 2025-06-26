@@ -202,7 +202,7 @@ if __name__ == '__main__':
         reac_num_keys['volumn'] = args.dim
     if args.use_temperature:
         reac_num_keys['temperature'] = args.dim
-        if condition_both:
+        if args.condition_both:
             prod_num_keys['temperature'] = args.dim
 
     encoder = RAlignEncoder(
