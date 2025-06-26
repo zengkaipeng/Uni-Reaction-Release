@@ -240,7 +240,7 @@ def build_az_condition_encoder(
             gnn = PretrainGIN(num_layer=5, emb_dim=300, drop_ratio=dropout)
             gnn.load_from_pretrained(config['pretrain_ckpt'])
             freeze_mode = config.get('freeze_mode', 'none')
-            if freeze_mode.startwith('freeze'):
+            if freeze_mode.startswith('freeze'):
                 freeze_layer = int(freeze_mode.split('-')[1])
                 assert freeze_layer < 5, \
                     "last layer norm changed, finetune required"
