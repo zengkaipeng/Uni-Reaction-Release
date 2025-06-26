@@ -1,6 +1,6 @@
 import torch
 from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
-from ..layers import SelfLoopGATConv
+from ..layers import SelfLoopGATConv, SparseEdgeUpdateLayer
 
 
 class SimpleCondGAT(torch.nn.Module):
