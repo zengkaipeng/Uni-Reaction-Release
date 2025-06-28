@@ -16,7 +16,7 @@ class NumEmbedding(torch.nn.Module):
         self.noisy_training = noisy_training
         self.n_dim = n_dim
 
-    def foward(self, num_x):
+    def forward(self, num_x):
         out = self.net(num_x.unsqueeze(dim=-1))
         if self.training and self.noisy_training:
             out = out + torch.randn_like(out)
@@ -29,7 +29,7 @@ class NumEmbeddingWithNan(NumEmbedding):
         self.nan_embedding = torch.nn.Parameter(torch.randn(n_dim))
 
     def forward(self, num_x):
-        empty_mask, bs = torch.isnan(x), num_x.shape[0]
+        empty_mask, bs = torch.isnan(num_x), num_x.shape[0]
         out_result = torch.zeros((bs, self.n_dim)).to(num_x)
         out_result[~empty_mask] = self.net(num_x[~empty_mask])
         out_result[empty_mask] = self.nan_embedding
@@ -81,12 +81,12 @@ class AzConditionEncoder(torch.nn.Module):
         answer = {}
         for idx, key in enumerate(key_list):
             if self.use_vol and key != 'solvent':
-                assert key_to_volumn is not None, "Require Volumn input"
+                assert key_to_volumn_feats is not None, "Require Volumn input"
                 gamma = self.volumn_adapter_gamma(key_to_volumn_feats[key])
                 beta = self.volumn_adapter_beta(key_to_volumn_feats[key])
                 bias = gamma[:, None] * nfeat[idx::4] + beta[:, None]
             elif self.use_sol_vol and key == 'solvent':
-                assert key_to_volumn is not None, "Require Volumn input"
+                assert key_to_volumn_feats is not None, "Require Volumn input"
                 gamma = self.sol_adapter_gamma(key_to_volumn_feats[key])
                 beta = self.sol_adapter_beta(key_to_volumn_feats[key])
                 bias = gamma[:, None] * nfeat[idx::4] + beta[:, None]

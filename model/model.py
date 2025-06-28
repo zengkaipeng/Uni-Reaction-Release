@@ -454,10 +454,8 @@ class AzYieldModel(torch.nn.Module):
         for k in required_keys:
             if k != 'solvent' and self.use_volumn:
                 vol_embs[k] = self.volumns(keys_to_volumns[k])
-                required_keys.discard(k)
             elif k == 'solvent' and self.use_sol_volumn:
                 vol_embs[k] = self.sol_volumns(keys_to_volumns[k])
-                required_keys.discard(k)
 
         condition_dict = self.condition_encoder(
             shared_graph=conditions, key_to_volumn_feats=vol_embs,

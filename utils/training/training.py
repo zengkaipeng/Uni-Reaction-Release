@@ -149,7 +149,10 @@ def eval_az_yield(loader, model, device, heads=None, local_global=False):
             cross_mask = None
 
         with torch.no_grad():
-            res = model(reac, prod, reag, cross_mask=cross_mask)
+            res = model(
+                reac_graph=reac, prod_graph=prod, conditions=reag,
+                cross_mask=cross_mask, temperatures=temps, keys_to_volumns=vols
+            )
             if res.shape[-1] == 2:
                 res = res.softmax(dim=-1)[:, 0] * 100
                 ytrue.append(label.numpy())

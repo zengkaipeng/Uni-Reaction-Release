@@ -132,7 +132,7 @@ def load_az_yield_one(
         labels=out, base=base, solvent=solvent, meta=meta,
         ligand=ligand, temperature=temperature, reac1_vol=reac1_vol,
         reac2_vol=reac2_vol, base_vol=base_vol, solvent_vol=sol_vol,
-        meta_vol=meta_vol, ligand_vol=ligand_vol, condition_type='pretrain'
+        meta_vol=meta_vol, ligand_vol=ligand_vol, condition_type=condition_type
     )
 
 
