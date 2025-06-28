@@ -12,9 +12,21 @@ usage: python draw_log.py --input /path/to/log/dir
 Output: plots of validation and test metrics, and train loss over epochs in the given log directory.
 '''
 
+ALL_COLS = ['dim', 'heads', 'n_layer', 'dropout', 'lr', 'use_temperature', 'use_volumn', 'use_sol_volumn', 'volumn_norm', 'condition_both']
+COL_SHORT = {
+        'dim': 'd', 'heads': 'h', 'n_layer': 'l', 'dropout': 'dp',
+        'lr': 'lr', 'use_temperature': 'T', 'use_volumn': 'V',
+        'use_sol_volumn': 'SV', 'volumn_norm': 'VN', 'condition_both': 'CB'
+    }
+
+def get_curve_tag(args, cols):
+    name = ';'.join([f"{COL_SHORT.get(col, col)}={args[col]}" for col in cols if col in args])
+    return name
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=' Args of the script: draw_log')
     parser.add_argument('--input', '-i', type=str, required=True, help='Input log dir')
+    parser.add_argument('--cols', '-c', type=str, default='', help='using which cols for title, split by space, default is all cols')
     args = parser.parse_args()
     input_dir = args.input
 
@@ -26,11 +38,11 @@ if __name__ == '__main__':
     with open(log_json, 'r') as f:
         log = json.load(f)
     
-
+    name_cols = args.cols.split(' ') if args.cols else ALL_COLS
+    name = get_curve_tag(log['args'], name_cols)
     # plot valid and test metrics
     valid_metric = log['valid_metric']
     test_metric = log['test_metric']
-
     epochs = np.arange(len(valid_metric))
     for metric in valid_metric[0].keys():
         plt.figure(figsize=(12, 6))
@@ -38,7 +50,7 @@ if __name__ == '__main__':
         plt.plot(epochs, [x[metric] for x in test_metric], label='Test ' + metric, linestyle='--')
         plt.xlabel('Epoch')
         plt.ylabel(metric)
-        plt.title(f'{metric} over epochs')
+        plt.title(f'{metric} of {name}')
         plt.legend()
         plt.grid()
         plt.savefig(os.path.join(input_dir, f'{metric}_over_epochs.png'))

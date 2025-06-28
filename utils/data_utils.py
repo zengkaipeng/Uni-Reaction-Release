@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import os
 
-from .Dataset import CNYieldDataset, AzYieldDataset, SelDataset
+from .Dataset import CNYieldDataset, AzYieldDataset, SelDataset, SMYieldDataset
 
 
 def load_sel(data_path, condition_type='pretrain'):
@@ -151,3 +151,24 @@ def count_parameters(module):
         if param.requires_grad:
             trainable_params += param.numel()
     return total_params, trainable_params
+
+def load_sm_yield(data_path, condition_type='pretrain'):
+    train_set = load_sm_yield_one(data_path, 'train', condition_type)
+    val_set = load_sm_yield_one(data_path, 'val', condition_type)
+    test_set = load_sm_yield_one(data_path, 'test', condition_type)
+    return train_set, val_set, test_set
+
+def load_sm_yield_one(data_path, part, condition_type='pretrain'):
+    train_x = pandas.read_csv(os.path.join(data_path, f'{part}.csv'))
+    rxn, out, ligand, solvent, catalyst = [[] for _ in range(6)]
+    for i, x in train_x.iterrows():
+        rxn.append(x['mapped_rxn'])
+        out.append(x['y'])
+        ligand.append(x['ligand_smiles'])
+        solvent.append(x['solvent_smiles'])
+        catalyst.append(x['catalyst_smiles'])
+
+    return SMYieldDataset(
+        reactions=rxn, ligand=ligand, catalyst=catalyst,
+        solvent=solvent, labels=out,  condition_type=condition_type
+    )
