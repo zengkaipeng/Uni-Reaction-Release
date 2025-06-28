@@ -64,7 +64,7 @@ if __name__ == '__main__':
         help='the number for epochs for training'
     )
     parser.add_argument(
-        '--base_log', type=str, default='log_cn',
+        '--base_log', type=str, default='log/sm',
         help='the path for contraining log'
     )
     parser.add_argument(
@@ -144,12 +144,12 @@ if __name__ == '__main__':
     elif condition_config['mode'] == 'mix-catalyst-ligand':
         condition_infos = {
             k: {'dim': condition_config['dim'], 'heads': args.heads}
-            for k in ['additive', 'base', 'catalyst and ligand']
+            for k in ['solvent', 'catalyst and ligand']
         }
     else:
         condition_infos = {
             k: {'dim': condition_config['dim'], 'heads': args.heads}
-            for k in ['ligand', 'base', 'additive', 'catalyst']
+            for k in ['ligand', 'catalyst', 'solvent']
         }
 
     encoder = RAlignEncoder(

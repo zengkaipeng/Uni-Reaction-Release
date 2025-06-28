@@ -154,19 +154,23 @@ def count_parameters(module):
 
 def load_sm_yield(data_path, condition_type='pretrain'):
     train_set = load_sm_yield_one(data_path, 'train', condition_type)
-    val_set = load_sm_yield_one(data_path, 'val', condition_type)
+    if os.path.exists(os.path.join(data_path, 'val.csv')):
+        val_set = load_sm_yield_one(data_path, 'val', condition_type)
+    else:
+        val_set = load_sm_yield_one(data_path, 'train', condition_type)
+
     test_set = load_sm_yield_one(data_path, 'test', condition_type)
     return train_set, val_set, test_set
 
 def load_sm_yield_one(data_path, part, condition_type='pretrain'):
     train_x = pandas.read_csv(os.path.join(data_path, f'{part}.csv'))
-    rxn, out, ligand, solvent, catalyst = [[] for _ in range(6)]
+    rxn, out, ligand, solvent, catalyst = [[] for _ in range(5)]
     for i, x in train_x.iterrows():
         rxn.append(x['mapped_rxn'])
         out.append(x['y'])
-        ligand.append(x['ligand_smiles'])
-        solvent.append(x['solvent_smiles'])
-        catalyst.append(x['catalyst_smiles'])
+        ligand.append(x['ligand_smiles'] if not pandas.isna(x['ligand_smiles']) else '')
+        solvent.append(x['solvent_smiles'] if not pandas.isna(x['solvent_smiles']) else '')
+        catalyst.append(x['catalyst_smiles'] if not pandas.isna(x['catalyst_smiles']) else '')
 
     return SMYieldDataset(
         reactions=rxn, ligand=ligand, catalyst=catalyst,

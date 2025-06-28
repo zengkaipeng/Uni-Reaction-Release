@@ -304,7 +304,6 @@ class SelDataset(RAlignDatasetBase):
         else:
             return reac_mol, prod_mol, gf(self.catalyst[index]), self.labels[index]
 
-
 def sel_with_cat_colfn(batch):
     reac, prod, catalyst, lbs = [], [], [], []
     for x in batch:
@@ -325,3 +324,25 @@ def sel_wo_cat_colfn(batch):
         lbs.append(x[2])
 
     return graph_col_fn(reac), graph_col_fn(prod), torch.FloatTensor(lbs)
+
+
+class SMYieldDataset(RAlignDatasetBase):
+    def __init__(
+        self, reactions, ligand, catalyst, solvent, labels, condition_type='pretrain'
+    ):
+        super(SMYieldDataset, self).__init__(reactions)
+        self.catalyst = catalyst
+        self.ligand = ligand
+        self.solvent = solvent
+        self.labels = labels
+        self.condition_type = condition_type
+
+        assert condition_type in ['pretrain', 'raw'], \
+            f'Invalid condition type {condition_type}'
+
+    def __getitem__(self, index):
+        reac_mol, prod_mol = self.get_aligned_graphs(index)
+        gf = smiles2graph if self.condition_type == 'raw' else pretrain_s2g
+        return reac_mol, prod_mol, \
+            gf(self.ligand[index]), gf(self.catalyst[index]), gf(self.solvent[index]), \
+            self.labels[index]

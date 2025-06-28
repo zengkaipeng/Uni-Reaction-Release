@@ -357,11 +357,11 @@ class SMConditionEncoder(torch.nn.Module):
     def forward(self, shared_gnn):
         node_feat = self.gnn(shared_gnn)
         node_feat = graph2batch(node_feat, shared_gnn.batch_mask)
-        key_list = ['ligand_smiles', 'solvent_smiles', 'catalyst_smiles']
+        key_list = ['ligand', 'catalyst', 'solvent']
         answer = {
             key: {
-                'embedding': node_feat[idx::4],
-                'meaningful_mask': shared_gnn.batch_mask[idx::4]
+                'embedding': node_feat[idx::3],
+                'meaningful_mask': shared_gnn.batch_mask[idx::3]
             } for idx, key in enumerate(key_list)
         }
 
@@ -369,15 +369,15 @@ class SMConditionEncoder(torch.nn.Module):
             answer['catalyst and ligand'] = {
                 'embedding': torch.cat([
                     answer['catalyst']['embedding'],
-                    answer['ligand_smiles']['embedding']
+                    answer['ligand']['embedding']
                 ], dim=1),
                 'meaningful_mask': torch.cat([
-                    answer['ligand_smiles']['meaningful_mask'],
-                    answer['ligand_smiles']['meaningful_mask']
+                    answer['ligand']['meaningful_mask'],
+                    answer['ligand']['meaningful_mask']
                 ], dim=1)
             }
-            del answer['ligand_smiles']
-            del answer['ligand_smiles']
+            del answer['catalyst']
+            del answer['ligand']
         elif self.mode == 'mix-all':
             all_emb = [answer[k]['embedding'] for k in key_list]
             all_mask = [answer[k]['meaningful_mask'] for k in key_list]
