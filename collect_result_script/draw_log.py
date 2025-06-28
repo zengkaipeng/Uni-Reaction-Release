@@ -6,18 +6,13 @@ import numpy as np
 import argparse
 import os
 import json
-
+from utils import COL_SHORT
 '''
 usage: python draw_log.py --input /path/to/log/dir
 Output: plots of validation and test metrics, and train loss over epochs in the given log directory.
 '''
 
-ALL_COLS = ['dim', 'heads', 'n_layer', 'dropout', 'lr', 'use_temperature', 'use_volumn', 'use_sol_volumn', 'volumn_norm', 'condition_both']
-COL_SHORT = {
-        'dim': 'd', 'heads': 'h', 'n_layer': 'l', 'dropout': 'dp',
-        'lr': 'lr', 'use_temperature': 'T', 'use_volumn': 'V',
-        'use_sol_volumn': 'SV', 'volumn_norm': 'VN', 'condition_both': 'CB'
-    }
+ALL_COLS = ['dim', 'heads', 'n_layer', 'dropout', 'lr', 'use_temperature', 'use_volumn', 'use_solvent_volumn', 'volumn_norm', 'condition_both']
 
 def get_curve_tag(args, cols):
     name = ';'.join([f"{COL_SHORT.get(col, col)}={args[col]}" for col in cols if col in args])

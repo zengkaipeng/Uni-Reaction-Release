@@ -6,18 +6,13 @@ import numpy as np
 import argparse
 import os
 import json
+from utils import ALL_COLS, COL_SHORT, validate
 
 '''
 usage: python draw_log.py --input /path/to/log/dir; 将所有需要对比的log_dir放在该目录下(/path/to/log/dir)
 Output: plots of validation and test metrics, and train loss over epochs in the given log directory.
 '''
 
-ALL_COLS = ['dim', 'heads', 'n_layer', 'dropout', 'lr', 'use_temperature', 'use_volumn', 'use_sol_volumn', 'volumn_norm', 'condition_both']
-COL_SHORT = {
-        'dim': 'd', 'heads': 'h', 'n_layer': 'l', 'dropout': 'dp',
-        'lr': 'lr', 'use_temperature': 'T', 'use_volumn': 'V',
-        'use_sol_volumn': 'SV', 'volumn_norm': 'VN', 'condition_both': 'CB'
-    }
 
 def get_curve_tag(args, cols):
     name = ';'.join([f"{COL_SHORT.get(col, col)}={args[col]}" for col in cols if col in args])
@@ -45,20 +40,6 @@ def filter_args(all_log_args, cols):
             diff_cols.append(col)
     return shared_cols, diff_cols
 
-
-def validate(log_json):
-    if not os.path.exists(log_json):
-        return None
-    with open(log_json, 'r') as f:
-        log = json.load(f)
-    if 'args' not in log or 'valid_metric' not in log or 'test_metric' not in log or 'train_loss' not in log:
-        return None
-    
-    if len(set([log['args']['epoch'], len(log['train_loss']), len(log['valid_metric']), len(log['test_metric'])])) != 1:
-        return None
-
-    return log
-
 def validate_same_datapath(all_datapath):
     if len(set(all_datapath)) != 1:
         return False
@@ -68,16 +49,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=' Args of the script: draw_compare_log')
     parser.add_argument('--input', '-i', type=str, required=True, help='Input log dir')
     parser.add_argument('--cols', '-c', type=str, default='', help='using which cols for title, split by space, default is all cols')
+    parser.add_argument('--test_only', '-t', action='store_true', help='whether to plot test metrics')
+    parser.add_argument('--val_only', '-v', action='store_true', help='whether to plot valid metrics')
+    parser.add_argument('--duplicate', '-d', action='store_true', help='if allow duplicate')
     args = parser.parse_args()
     input_dir = args.input
-
+    test_only = args.test_only
+    val_only = args.val_only
+    do_not_draw_test = val_only and not test_only
+    do_not_draw_val = test_only and not val_only
 
     all_valid_log = []
 
     for root, dirs, files in os.walk(input_dir):
-        if len(dirs) == 0 and 'log.json' in files:
-            log_json = os.path.join(root, 'log.json')
-            log = validate(log_json)
+        if len(dirs) == 0:
+            log = validate(root)
             if log is not None:
                 all_valid_log.append(log)
             else:
@@ -91,6 +77,20 @@ if __name__ == '__main__':
         print("All logs should have the same data_path.")
         exit(0)
     
+    if not args.duplicate:
+        # check if there are duplicate logs
+        all_mol_tag = set()
+        filter_dup = []
+        for log in all_valid_log:
+            mol_tag = ';'.join([str(log['args'].get(col, ' ')) for col in ALL_COLS ])
+            if mol_tag in all_mol_tag:
+                print(f"Duplicate log found: {mol_tag}. removing it.")
+                continue
+            all_mol_tag.add(mol_tag)
+            filter_dup.append(log)
+        all_valid_log = filter_dup
+
+
     name_cols = args.cols.split(' ') if args.cols else ALL_COLS
     shared_cols, diff_cols = filter_args([log['args'] for log in all_valid_log], name_cols)
 
@@ -109,13 +109,14 @@ if __name__ == '__main__':
             test_metric = log['test_metric']
             epochs = np.arange(len(valid_metric))
             legend_title = get_curve_tag(log['args'], diff_cols)
-
-            plt.plot(epochs, [x[metric] for x in valid_metric], 
-                     label=legend_title+'(Val)', color=colors[exp_idx],
-                     linestyle='-')
-            plt.plot(epochs, [x[metric] for x in test_metric], 
-                     label=legend_title+'(Test)', color=colors[exp_idx],
-                     linestyle='--')
+            if not do_not_draw_val:
+                plt.plot(epochs, [x[metric] for x in valid_metric], 
+                         label=legend_title+'(Val)', color=colors[exp_idx],
+                         linestyle='-')
+            if not do_not_draw_test:
+                plt.plot(epochs, [x[metric] for x in test_metric], 
+                         label=legend_title+'(Test)', color=colors[exp_idx],
+                         linestyle='--')
             
         plt.xlabel('Epoch')
         plt.ylabel(metric)
