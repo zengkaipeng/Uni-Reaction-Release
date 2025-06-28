@@ -72,11 +72,10 @@ class AzConditionEncoder(torch.nn.Module):
 
         if self.use_temp:
             assert temperatures_feats is not None, "Require temperature input"
-            gamma = self.temp_adapter_gamma(temperatures_feats)[:, None]
-            beta = self.temp_adapter_beta(temperatures_feats)[:, None]
-            temp_bias = gamma * nfeat + beta
+            tp_gamma = self.temp_adapter_gamma(temperatures_feats)[:, None]
+            tp_beta = self.temp_adapter_beta(temperatures_feats)[:, None]
         else:
-            temp_bias = torch.zeros_like(nfeat)
+            temp_gamma = tp_beta = 0
 
         answer = {}
         for idx, key in enumerate(key_list):
@@ -93,7 +92,7 @@ class AzConditionEncoder(torch.nn.Module):
             else:
                 bias = torch.zeros_like(nfeat[idx::4])
 
-            this_emb = nfeat[idx::4] + bias + temp_bias[idx::4]
+            this_emb = (1 + tp_gamma) * nfeat[idx::4] + bias + tp_beta
             this_mask = shared_graph.batch_mask[idx::4]
 
             answer[key] = {'embedding': this_emb, 'meaningful_mask': this_mask}
