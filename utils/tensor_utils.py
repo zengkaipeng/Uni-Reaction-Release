@@ -1,5 +1,16 @@
 import torch
 
+def convert_log_into_label(logits, mod='sigmoid'):
+    if mod == 'sigmoid':
+        pred = torch.zeros_like(logits)
+        pred[logits >= 0] = 1
+        pred[logits < 0] = 0
+    elif mod == 'softmax':
+        pred = torch.argmax(logits, dim=-1)
+    else:
+        raise NotImplementedError(f'Invalid mode {mod}')
+    return pred
+
 
 def correct_trans_output(trans_pred, end_idx, pad_idx):
     batch_size, max_len = trans_pred.shape
@@ -64,3 +75,16 @@ def generate_topk_mask(belong, max_num, k):
     top_k_mask = torch.logical_and(cir_x <= k, eq_mask)
     # i row: top-k of belong i
     return torch.any(top_k_mask, dim=0)
+
+def calc_trans_loss(trans_pred, trans_lb, ignore_index):
+    batch_size, maxl, num_c = trans_pred.shape
+    trans_pred = trans_pred.reshape(-1, num_c)
+    trans_lb = trans_lb.reshape(-1)
+
+    losses = torch.nn.functional.cross_entropy(
+        trans_pred, trans_lb, reduction='none',
+        ignore_index=ignore_index,
+    )
+    losses = losses.reshape(batch_size, maxl)
+    loss = torch.mean(torch.sum(losses, dim=-1))
+    return loss

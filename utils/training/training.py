@@ -5,7 +5,12 @@ from tqdm import tqdm
 from torch.nn.functional import kl_div, mse_loss
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-from ..tensor_utils import generate_local_global_mask
+from ..tensor_utils import (
+    generate_local_global_mask, 
+    generate_tgt_mask, calc_trans_loss, 
+    correct_trans_output, data_eval_trans,
+    convert_log_into_label
+)
 
 
 def warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor):
@@ -228,3 +233,99 @@ def eval_regression(loader, model, device, heads=None, local_global=False):
         'MSE': float(mean_squared_error(ytrue, ypred)),
         'R2': float(r2_score(ytrue, ypred))
     }
+
+def train_gen(
+    loader, model, optimizer, device, pad_idx, heads=None,
+    local_global=False, warmup=False, toker=None
+):
+    if local_global and heads is None:
+        raise ValueError("require num heads for local global mask")
+    model, los_cur = model.train(), []
+    if warmup:
+        warmup_iters = len(loader) - 1
+        warmup_sher = warmup_lr_scheduler(optimizer, warmup_iters, 5e-2)
+
+    for reac, prod, label in tqdm(loader):
+        reac, prod = reac.to(device), prod.to(device)
+        if toker is None:
+            max_len = max(len(x) for x in label)
+            tgt = []
+            for idx, p in enumerate(label):
+                xm = p + ([pad_idx] * (max_len - len(p)))
+                tgt.append(torch.LongTensor(xm))
+            tgt = torch.stack(tgt, dim=0).to(device)
+        else:
+            tgt = toker.encode2d(label)
+            tgt = torch.LongTensor(tgt).to(device)
+
+        trans_dec_ip = tgt[:, :-1]
+        trans_dec_op = tgt[:, 1:]
+        trans_op_mask, diag_mask = generate_tgt_mask(
+            trans_dec_ip, pad_idx=pad_idx, device=device
+        )
+        if local_global:
+            Qlen = trans_dec_ip.shape[1]
+            cross_mask = generate_local_global_mask(reac, prod, Qlen, heads)
+        else:
+            cross_mask = None
+
+        trans_logs = model(
+            reac_graph=reac, prod_graph=prod, tgt=trans_dec_ip,
+            tgt_mask=diag_mask, cross_mask=cross_mask,
+            tgt_key_padding_mask=trans_op_mask
+        )
+
+        loss = calc_trans_loss(trans_logs, trans_dec_op, pad_idx)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        los_cur.append(loss.item())
+        if warmup:
+            warmup_sher.step()
+
+    return np.mean(los_cur)
+
+
+def eval_gen(
+    loader, model, device, pad_idx, end_idx,
+    toker=None, heads=None, local_global=False
+):
+    model, accx = model.eval(), []
+    for reac, prod, label in tqdm(loader):
+        reac, prod = reac.to(device), prod.to(device)
+        if toker is None:
+            max_len = max(len(x) for x in label)
+            tgt = []
+            for idx, p in enumerate(label):
+                xm = p + ([pad_idx] * (max_len - len(p)))
+                tgt.append(torch.LongTensor(xm))
+            tgt = torch.stack(tgt, dim=0).to(device)
+        else:
+            tgt = toker.encode2d(label)
+            tgt = torch.LongTensor(tgt).to(device)
+
+        trans_dec_ip = tgt[:, :-1]
+        trans_dec_op = tgt[:, 1:]
+        trans_op_mask, diag_mask = generate_tgt_mask(
+            trans_dec_ip, pad_idx=pad_idx, device=device
+        )
+        if local_global:
+            Qlen = trans_dec_ip.shape[1]
+            cross_mask = generate_local_global_mask(reac, prod, Qlen, heads)
+        else:
+            cross_mask = None
+
+        with torch.no_grad():
+            trans_logs = model(
+                reac_graph=reac, prod_graph=prod, tgt=trans_dec_ip,
+                tgt_mask=diag_mask, cross_mask=cross_mask,
+                tgt_key_padding_mask=trans_op_mask
+            )
+
+        trans_pred = convert_log_into_label(trans_logs, mod='softmax')
+        trans_pred = correct_trans_output(trans_pred, end_idx, pad_idx)
+        trans_acc = data_eval_trans(trans_pred, trans_dec_op, True)
+        accx.append(trans_acc)
+
+    accx = torch.cat(accx, dim=0).float()
+    return accx.mean().item()

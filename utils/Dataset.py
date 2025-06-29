@@ -346,3 +346,29 @@ class SMYieldDataset(RAlignDatasetBase):
         return reac_mol, prod_mol, \
             gf(self.ligand[index]), gf(self.catalyst[index]), gf(self.solvent[index]), \
             self.labels[index]
+    
+
+class ReactionPredDataset(RAlignDatasetBase):
+    def __init__(self, reactions, labels, cls_id, end_id=None):
+        super(ReactionPredDataset, self).__init__(reactions)
+        self.reactions = reactions
+        self.labels = labels
+        self.cls_id = cls_id
+        self.end_id = end_id
+
+    def __len__(self):
+        return len(self.reactions)
+
+    def __getitem__(self, idx):
+        reac_mol, prod_mol = self.get_aligned_graphs(idx)
+
+        tlabel = [self.cls_id] + self.labels[idx]
+        if self.end_id is not None:
+            tlabel += [self.end_id]
+        return reac_mol, prod_mol, tlabel
+    
+
+def gen_fn(batch):
+    reac = graph_col_fn([x[0] for x in batch])
+    prod = graph_col_fn([x[1] for x in batch])
+    return reac, prod, [x[2] for x in batch]

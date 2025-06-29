@@ -3,9 +3,15 @@ import random
 import numpy as np
 import torch
 import os
+import json
 
-from .Dataset import CNYieldDataset, AzYieldDataset, SelDataset, SMYieldDataset
-
+from .Dataset import (
+    CNYieldDataset, AzYieldDataset, SMYieldDataset,
+    SelDataset,
+    ReactionPredDataset
+)
+    
+from model import Tokenizer, smi_tokenizer
 
 def load_sel(data_path, condition_type='pretrain'):
     train_set = load_sel_one(data_path, 'train', condition_type)
@@ -176,3 +182,63 @@ def load_sm_yield_one(data_path, part, condition_type='pretrain'):
         reactions=rxn, ligand=ligand, catalyst=catalyst,
         solvent=solvent, labels=out,  condition_type=condition_type
     )
+
+def load_uspto_mt_500_gen(data_path, remap=None, part=None):
+    if remap is None:
+        with open(os.path.join(data_path, 'all_tokens.json')) as F:
+            reag_list = json.load(F)
+        remap = Tokenizer(reag_list, {'<UNK>', '<CLS>', '<END>', '<PAD>', '`'})
+
+    with open(os.path.join(data_path, 'all_reagents.json')) as F:
+        INFO = json.load(F)
+    reag_order = {k: idx for idx, k in enumerate(INFO)}
+
+    rxns, px = [[], [], []], 0
+    labels = [[], [], []]
+    if part is None:
+        iterx = ['train.json', 'val.json', 'test.json']
+    else:
+        iterx = [f'{part}.json']
+    for infos in iterx:
+        F = open(os.path.join(data_path, infos))
+        setx = json.load(F)
+        F.close()
+        for lin in setx:
+            rxns[px].append(lin['new_mapped_rxn'])
+            lin['reagent_list'].sort(key=lambda x: reag_order[x])
+            lbs = []
+            for tdx, x in enumerate(lin['reagent_list']):
+                if tdx > 0:
+                    lbs.append('`')
+                lbs.extend(smi_tokenizer(x))
+            labels[px].append(lbs)
+        px += 1
+
+    if part is not None:
+        return ReactionPredDataset(
+            reactions=rxns[0], labels=labels[0],
+            cls_id='<CLS>', end_id='<END>'
+        ), remap
+
+    train_set = ReactionPredDataset(
+        reactions=rxns[0], labels=labels[0],
+        cls_id='<CLS>', end_id='<END>'
+    )
+
+    val_set = ReactionPredDataset(
+        reactions=rxns[1], labels=labels[1],
+        cls_id='<CLS>', end_id='<END>'
+    )
+
+    test_set = ReactionPredDataset(
+        reactions=rxns[2], labels=labels[2],
+        cls_id='<CLS>', end_id="<END>"
+    )
+
+    return train_set, val_set, test_set, remap
+
+def check_early_stop(*args):
+    answer = True
+    for x in args:
+        answer &= all(t <= x[0] for t in x[1:])
+    return answer

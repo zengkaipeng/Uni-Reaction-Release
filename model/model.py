@@ -229,7 +229,7 @@ class USPTO500MTModel(torch.nn.Module):
         self.out_layer = torch.nn.Sequential(
             torch.nn.Linear(dim, dim),
             torch.nn.GELU(),
-            torch.nn.Linear(dim, dim)
+            torch.nn.Linear(dim, n_words)
         )
         self.encoder = encoder
         self.decoder = decoder
@@ -263,7 +263,6 @@ class USPTO500MTModel(torch.nn.Module):
         tgt_key_padding_mask=None, cross_mask=None
     ):
         memory, memory_pad = self.encode(reac_graph, prod_graph)
-        assert tgt.shape[1] <= 5, 'Invalid Format for prediction'
         result = self.decode_a_step(
             memory, tgt, tgt_mask=tgt_mask, cross_mask=cross_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
@@ -319,10 +318,10 @@ class USPTO500MTModel(torch.nn.Module):
             n_close, res, rc_l = n_close[alive], res[alive], rc_l[alive]
             log_logits, belong = log_logits[alive], belong[alive]
 
-            diag_mask = generate_diag_mask(res.shape[1], device)
+            diag_mask = generate_square_subsequent_mask(res.shape[1], device)
             rc_out = torch.log_softmax(self.decode_a_step(
                 memory=memory,  cross_mask=cross_mask, tgt_mask=diag_mask,
-                seq=res, memory_key_padding_mask=memory_key_padding_mask
+                seq=res, memory_key_padding_mask=memory_padding
             )[:, -1], dim=-1)
 
             dup = min(rc_out.shape[-1], beam)
