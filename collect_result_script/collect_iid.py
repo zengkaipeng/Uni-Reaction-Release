@@ -15,7 +15,9 @@ if __name__ == '__main__':
     parser.add_argument('--iid_marker', '-iid', type=str, default='FullCV_.*', help='Marker for IID datasets')
     args = parser.parse_args()
     input_file = args.input
-
+    out_dir = osp.join(input_file, 'iid')
+    if not osp.exists(out_dir):
+        os.makedirs(out_dir)
     # os walking
     # specific_args = ['dim', 'heads', 'n_layer', 'dropout', 'lr', 'seed', 'condition_config', 'condition_both']
     exclude_args = ['data_path', 'base_log', 'log_dir']
@@ -102,5 +104,5 @@ if __name__ == '__main__':
         df = pd.DataFrame(record[m])
         # sort by tag
         df.sort_values(by=['model_tag'], inplace=True)
-        df.to_csv(osp.join(input_file, f"{m}_best_by_{best_by}.csv"), index=False)
-    print(f"Results collected and saved in {input_file}.")
+        df.to_csv(osp.join(out_dir, f"{m}_best_by_{best_by}.csv"), index=False)
+    print(f"Results collected and saved in {out_dir}.")
