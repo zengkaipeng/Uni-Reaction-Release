@@ -7,11 +7,11 @@ import json
 
 from .Dataset import (
     CNYieldDataset, AzYieldDataset, SMYieldDataset,
-    SelDataset,
-    ReactionPredDataset
+    SelDataset, ReactionPredDataset
 )
-    
-from model import Tokenizer, smi_tokenizer
+
+from .tokenlizer import Tokenizer, smi_tokenizer
+
 
 def load_sel(data_path, condition_type='pretrain'):
     train_set = load_sel_one(data_path, 'train', condition_type)
@@ -158,6 +158,7 @@ def count_parameters(module):
             trainable_params += param.numel()
     return total_params, trainable_params
 
+
 def load_sm_yield(data_path, condition_type='pretrain'):
     train_set = load_sm_yield_one(data_path, 'train', condition_type)
     if os.path.exists(os.path.join(data_path, 'val.csv')):
@@ -168,20 +169,29 @@ def load_sm_yield(data_path, condition_type='pretrain'):
     test_set = load_sm_yield_one(data_path, 'test', condition_type)
     return train_set, val_set, test_set
 
+
 def load_sm_yield_one(data_path, part, condition_type='pretrain'):
     train_x = pandas.read_csv(os.path.join(data_path, f'{part}.csv'))
     rxn, out, ligand, solvent, catalyst = [[] for _ in range(5)]
     for i, x in train_x.iterrows():
         rxn.append(x['mapped_rxn'])
         out.append(x['y'])
-        ligand.append(x['ligand_smiles'] if not pandas.isna(x['ligand_smiles']) else '')
-        solvent.append(x['solvent_smiles'] if not pandas.isna(x['solvent_smiles']) else '')
-        catalyst.append(x['catalyst_smiles'] if not pandas.isna(x['catalyst_smiles']) else '')
+        ligand.append(
+            x['ligand_smiles'] if not pandas.isna(x['ligand_smiles']) else ''
+        )
+        solvent.append(
+            x['solvent_smiles'] if not pandas.isna(x['solvent_smiles']) else ''
+        )
+        catalyst.append(
+            x['catalyst_smiles'] if not pandas.isna(x['catalyst_smiles'])
+            else ''
+        )
 
     return SMYieldDataset(
         reactions=rxn, ligand=ligand, catalyst=catalyst,
         solvent=solvent, labels=out,  condition_type=condition_type
     )
+
 
 def load_uspto_mt_500_gen(data_path, remap=None, part=None):
     if remap is None:
@@ -237,8 +247,13 @@ def load_uspto_mt_500_gen(data_path, remap=None, part=None):
 
     return train_set, val_set, test_set, remap
 
+
 def check_early_stop(*args):
     answer = True
     for x in args:
         answer &= all(t <= x[0] for t in x[1:])
     return answer
+
+
+def load_uspto_condition(data_path, ):
+    pass

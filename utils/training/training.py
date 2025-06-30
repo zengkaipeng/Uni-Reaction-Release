@@ -6,8 +6,8 @@ from torch.nn.functional import kl_div, mse_loss
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 from ..tensor_utils import (
-    generate_local_global_mask, 
-    generate_tgt_mask, calc_trans_loss, 
+    generate_local_global_mask,
+    generate_tgt_mask, calc_trans_loss,
     correct_trans_output, data_eval_trans,
     convert_log_into_label
 )
@@ -177,7 +177,6 @@ def eval_az_yield(loader, model, device, heads=None, local_global=False):
     }
 
 
-
 def train_regression(
     loader, model, optimizer, device, heads=None,
     local_global=False, warmup=False
@@ -234,9 +233,10 @@ def eval_regression(loader, model, device, heads=None, local_global=False):
         'R2': float(r2_score(ytrue, ypred))
     }
 
+
 def train_gen(
-    loader, model, optimizer, device, pad_idx, heads=None,
-    local_global=False, warmup=False, toker=None
+    loader, model, optimizer, device, pad_idx, toker,
+    heads=None, local_global=False, warmup=False,
 ):
     if local_global and heads is None:
         raise ValueError("require num heads for local global mask")
@@ -247,16 +247,8 @@ def train_gen(
 
     for reac, prod, label in tqdm(loader):
         reac, prod = reac.to(device), prod.to(device)
-        if toker is None:
-            max_len = max(len(x) for x in label)
-            tgt = []
-            for idx, p in enumerate(label):
-                xm = p + ([pad_idx] * (max_len - len(p)))
-                tgt.append(torch.LongTensor(xm))
-            tgt = torch.stack(tgt, dim=0).to(device)
-        else:
-            tgt = toker.encode2d(label)
-            tgt = torch.LongTensor(tgt).to(device)
+        tgt = toker.encode2d(label)
+        tgt = torch.LongTensor(tgt).to(device)
 
         trans_dec_ip = tgt[:, :-1]
         trans_dec_op = tgt[:, 1:]
@@ -288,21 +280,13 @@ def train_gen(
 
 def eval_gen(
     loader, model, device, pad_idx, end_idx,
-    toker=None, heads=None, local_global=False
+    toker, heads=None, local_global=False
 ):
     model, accx = model.eval(), []
     for reac, prod, label in tqdm(loader):
         reac, prod = reac.to(device), prod.to(device)
-        if toker is None:
-            max_len = max(len(x) for x in label)
-            tgt = []
-            for idx, p in enumerate(label):
-                xm = p + ([pad_idx] * (max_len - len(p)))
-                tgt.append(torch.LongTensor(xm))
-            tgt = torch.stack(tgt, dim=0).to(device)
-        else:
-            tgt = toker.encode2d(label)
-            tgt = torch.LongTensor(tgt).to(device)
+        tgt = toker.encode2d(label)
+        tgt = torch.LongTensor(tgt).to(device)
 
         trans_dec_ip = tgt[:, :-1]
         trans_dec_op = tgt[:, 1:]
@@ -329,3 +313,82 @@ def eval_gen(
 
     accx = torch.cat(accx, dim=0).float()
     return accx.mean().item()
+
+
+def train_pred(
+    loader, model, optimizer, device, heads=None,
+    local_global=False, warmup=False
+):
+    if local_global and heads is None:
+        raise ValueError("require num heads for local global mask")
+    model, los_cur = model.train(), []
+    if warmup:
+        warmup_iters = len(loader) - 1
+        warmup_sher = warmup_lr_scheduler(optimizer, warmup_iters, 5e-2)
+
+    for reac, prod, label in tqdm(loader):
+        reac, prod, label = reac.to(device), prod.to(device), label.to(device)
+        tgt_in, tgt_out = label[:, :-1], label[:, 1:]
+
+        pad_mask, sub_mask = generate_tgt_mask(tgt_in, -1000, device)
+
+        if local_global:
+            Qlen = tgt_in.shape[1]
+            cross_mask = generate_local_global_mask(reac, prod, Qlen, heads)
+        else:
+            cross_mask = None
+        res = model(
+            reac, prod, tgt_in, tgt_mask=sub_mask,
+            tgt_key_padding_mask=pad_mask, cross_mask=cross_mask
+        )
+
+        loss = calc_trans_loss(res, tgt_out, -1000)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        los_cur.append(loss.item())
+        if warmup:
+            warmup_sher.step()
+
+    return np.mean(los_cur)
+
+
+def eval_pred(loader, model, device, heads=None, local_global=False):
+    model, accs, gt = model.eval(), [], []
+    for reac, prod, label in tqdm(loader):
+        reac, prod, label = reac.to(device), prod.to(device), label.to(device)
+        tgt_in, tgt_out = label[:, :-1], label[:, 1:]
+        pad_mask, sub_mask = generate_tgt_mask(tgt_in, -1000, device)
+
+        if local_global:
+            Qlen = tgt_in.shape[1]
+            cross_mask = generate_local_global_mask(reac, prod, Qlen, heads)
+        else:
+            cross_mask = None
+
+        with torch.no_grad():
+            res = model(
+                reac, prod, tgt_in, tgt_mask=sub_mask,
+                tgt_key_padding_mask=pad_mask, cross_mask=cross_mask
+            )
+
+            result = convert_log_into_label(res, mod='softmax')
+
+        accs.append(result)
+        gt.append(tgt_out)
+
+    accs = torch.cat(accs, dim=0)
+    gt = torch.cat(gt, dim=0)
+
+    keys = ['catalyst', 'solvent1', 'solvent2', 'reagent1', 'reagent2']
+    results, overall = {}, None
+    for idx, k in enumerate(keys):
+        results[k] = accs[:, idx] == gt[:, idx]
+        if idx == 0:
+            overall = accs[:, idx] == gt[:, idx]
+        else:
+            overall &= (accs[:, idx] == gt[:, idx])
+
+    results['overall'] = overall
+    results = {k: v.float().mean().item() for k, v in results.items()}
+    return results

@@ -1,18 +1,17 @@
 import torch
-from utils.data_utils import (
-    check_early_stop, fix_seed, load_uspto_mt_500_gen
-)
+from data_utils import create_pred_dataset, check_early_stop, fix_seed
 import argparse
 import time
 import os
 import pickle
-from utils.Dataset import gen_fn
+from Dataset import pred_fn
 from torch.utils.data import DataLoader
 from model import (
-    TranDec, USPTO500MTModel, PositionalEncoding, RAlignEncoder
+    GtransEncoder, TranDec, PredictModel, PositionalEncoding,
+    GATEncoder
 )
 from torch.optim.lr_scheduler import ExponentialLR
-from utils.training import train_gen, eval_gen
+from training import train_pred, eval_pred
 import json
 
 
@@ -27,7 +26,7 @@ def make_dir(args):
     return log_dir, model_dir, token_dir
 
 
-def get_args():
+if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parser for prediction model')
     parser.add_argument(
         '--data_path', required=True, type=str,
@@ -84,6 +83,10 @@ def get_args():
         help='the negative slope of model'
     )
     parser.add_argument(
+        '--local_global', action='store_true',
+        help='use local global attention for decoder'
+    )
+    parser.add_argument(
         '--device', type=int, default=0,
         help='the device id for traiing, negative for cpu'
     )
@@ -97,15 +100,20 @@ def get_args():
         help='the step to start lr decay'
     )
     parser.add_argument(
-        '--seed', type=int, default=2025,
+        '--seed', type=int, default=2023,
         help='the random seed for training'
     )
+    parser.add_argument(
+        '--transformer', action='store_true',
+        help='the use graph transformer or not'
+    )
+    parser.add_argument(
+        '--gate', choices=['add', 'cat', 'film'],
+        help='the update gate for graph transformer'
+    )
+
     args = parser.parse_args()
-    return args
 
-
-if __name__ == '__main__':
-    args = get_args()
     fix_seed(args.seed)
 
     if torch.cuda.is_available() and args.device >= 0:
@@ -113,41 +121,45 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    train_set, val_set, test_set, remap =\
-        load_uspto_mt_500_gen(args.data_path)
-    pad_idx = remap.token2idx['<PAD>']
-    end_idx = remap.token2idx['<END>']
+    train_set, val_set, test_set, remap = \
+        create_pred_dataset(args.data_path)
 
     log_dir, model_dir, token_dir = make_dir(args)
 
     train_loader = DataLoader(
-        train_set, batch_size=args.bs, collate_fn=gen_fn,
+        train_set, batch_size=args.bs, collate_fn=pred_collate_fn,
         shuffle=True, num_workers=args.num_worker,
     )
 
     val_loader = DataLoader(
-        val_set, batch_size=args.bs, collate_fn=gen_fn,
+        val_set, batch_size=args.bs, collate_fn=pred_collate_fn,
         shuffle=False, num_workers=args.num_worker
     )
 
     test_loader = DataLoader(
-        test_set, batch_size=args.bs, collate_fn=gen_fn,
+        test_set, batch_size=args.bs, collate_fn=pred_collate_fn,
         shuffle=False, num_workers=args.num_worker
     )
-    encoder = RAlignEncoder(
-        emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
-        edge_dim=args.dim, dropout=args.dropout,
-        negative_slope=args.negative_slope, update_last_edge=False
-    )
+    if args.transformer:
+        encoder = GtransEncoder(
+            emb_dim=args.dim, n_layers=args.n_layer, heads=args.heads,
+            dropout=args.dropout, negative_slope=args.negative_slope,
+            gate=args.gate
+        )
+    else:
+        encoder = GATEncoder(
+            emb_dim=args.dim, n_layers=args.n_layer, heads=args.heads,
+            dropout=args.dropout, negative_slope=args.negative_slope
+        )
     decoder = TranDec(
         n_layers=args.n_layer, emb_dim=args.dim, heads=args.heads,
         dropout=args.dropout, dim_ff=args.dim << 1
     )
-    pos_env = PositionalEncoding(args.dim, args.dropout, maxlen=2000)
+    pos_env = PositionalEncoding(args.dim, args.dropout, maxlen=50)
 
-    model = USPTO500MTModel(
-        encoder=encoder, decoder=decoder, pe=pos_env,
-        n_words=len(remap), dim=args.dim
+    model = PredictModel(
+        encoder=encoder, decoder=decoder, pos_enc=pos_env,
+        num_embs=len(remap), dim=args.dim, dropout=args.dropout
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -168,20 +180,17 @@ if __name__ == '__main__':
 
     for ep in range(args.epoch):
         print(f'[INFO] training epoch {ep}')
-        loss = train_gen(
-            loader=train_loader, model=model, optimizer=optimizer,
-            device=device, pad_idx=pad_idx, heads=args.heads,
-            warmup=(ep < args.warmup), local_global=True, toker=remap
+        loss = train_pred(
+            train_loader, model, optimizer, device, heads=args.heads,
+            warmup=(ep < args.warmup), local_global=args.local_global
         )
-        val_results = eval_gen(
-            loader=val_loader, model=model, device=device,
-            pad_idx=pad_idx, end_idx=end_idx,
-            heads=args.heads, local_global=True, toker=remap
+        val_results = eval_pred(
+            val_loader, model, device, heads=args.heads,
+            local_global=args.local_global
         )
-        test_results = eval_gen(
-            loader=test_loader, model=model, device=device,
-            pad_idx=pad_idx, end_idx=end_idx,
-            heads=args.heads, local_global=True, toker=remap
+        test_results = eval_pred(
+            test_loader, model, device, heads=args.heads,
+            local_global=args.local_global
         )
 
         print('[Train]:', loss)
@@ -198,13 +207,18 @@ if __name__ == '__main__':
         with open(log_dir, 'w') as Fout:
             json.dump(log_info, Fout, indent=4)
 
-        if best_pref is None or val_results > best_pref:
-            best_pref, best_ep = val_results, ep
+        if best_pref is None or val_results['overall'] > best_pref:
+            best_pref, best_ep = val_results['overall'], ep
             torch.save(model.state_dict(), model_dir)
 
         if args.early_stop >= 5 and ep > max(10, args.early_stop):
             tx = log_info['valid_metric'][-args.early_stop:]
-            if check_early_stop(tx):
+            keys = [
+                'overall', 'catalyst', 'solvent1', 'solvent2',
+                'reagent1', 'reagent2'
+            ]
+            tx = [[x[key] for x in tx] for key in keys]
+            if check_early_stop(*tx):
                 break
 
     print(f'[INFO] best acc epoch: {best_ep}')

@@ -296,13 +296,14 @@ class SelDataset(RAlignDatasetBase):
         assert condition_type in ['pretrain', 'raw'], \
             f'Invalid condition type {condition_type}'
 
-    def __getitem__(self, index):
-        reac_mol, prod_mol = self.get_aligned_graphs(index)
+    def __getitem__(self, idx):
+        reac_mol, prod_mol = self.get_aligned_graphs(idx)
         gf = smiles2graph if self.condition_type == 'raw' else pretrain_s2g
         if self.catalyst is None:
-            return reac_mol, prod_mol, self.labels[index]
+            return reac_mol, prod_mol, self.labels[idx]
         else:
-            return reac_mol, prod_mol, gf(self.catalyst[index]), self.labels[index]
+            return reac_mol, prod_mol, gf(self.catalyst[idx]), self.labels[idx]
+
 
 def sel_with_cat_colfn(batch):
     reac, prod, catalyst, lbs = [], [], [], []
@@ -328,7 +329,8 @@ def sel_wo_cat_colfn(batch):
 
 class SMYieldDataset(RAlignDatasetBase):
     def __init__(
-        self, reactions, ligand, catalyst, solvent, labels, condition_type='pretrain'
+        self, reactions, ligand, catalyst, solvent,
+        labels, condition_type='pretrain'
     ):
         super(SMYieldDataset, self).__init__(reactions)
         self.catalyst = catalyst
@@ -344,9 +346,9 @@ class SMYieldDataset(RAlignDatasetBase):
         reac_mol, prod_mol = self.get_aligned_graphs(index)
         gf = smiles2graph if self.condition_type == 'raw' else pretrain_s2g
         return reac_mol, prod_mol, \
-            gf(self.ligand[index]), gf(self.catalyst[index]), gf(self.solvent[index]), \
-            self.labels[index]
-    
+            gf(self.ligand[index]), gf(self.catalyst[index]), \
+            gf(self.solvent[index]), self.labels[index]
+
 
 class ReactionPredDataset(RAlignDatasetBase):
     def __init__(self, reactions, labels, cls_id, end_id=None):
@@ -366,9 +368,15 @@ class ReactionPredDataset(RAlignDatasetBase):
         if self.end_id is not None:
             tlabel += [self.end_id]
         return reac_mol, prod_mol, tlabel
-    
+
 
 def gen_fn(batch):
     reac = graph_col_fn([x[0] for x in batch])
     prod = graph_col_fn([x[1] for x in batch])
     return reac, prod, [x[2] for x in batch]
+
+
+def pred_fn(batch):
+    reac = graph_col_fn([x[0] for x in batch])
+    prod = graph_col_fn([x[1] for x in batch])
+    return reac, prod, torch.LongTensor([x[2] for x in batch])
