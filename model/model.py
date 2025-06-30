@@ -51,7 +51,7 @@ class RegressionModel(torch.nn.Module):
         return self.out_head(reaction_emb)
 
 class CNYieldModel(torch.nn.Module):
-    def __init__(self, encoder, condition_encoder, dim, heads, dropout=0.1):
+    def __init__(self, encoder, condition_encoder, dim, heads, dropout=0.1, out_dim=2):
         super(CNYieldModel, self).__init__()
         self.encoder = encoder
         self.condition_encoder = condition_encoder
@@ -66,7 +66,7 @@ class CNYieldModel(torch.nn.Module):
             torch.nn.Dropout(dropout),
             torch.nn.Linear(dim, dim),
             torch.nn.GELU(),
-            torch.nn.Linear(dim, 2)
+            torch.nn.Linear(dim, out_dim)
         )
         self.pool_keys = torch.nn.Parameter(torch.randn(1, 1, dim))
         self.pooler = DotMhAttn(

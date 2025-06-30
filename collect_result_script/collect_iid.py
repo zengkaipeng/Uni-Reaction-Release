@@ -106,6 +106,6 @@ if __name__ == '__main__':
     for m in record.keys():
         df = pd.DataFrame(record[m])
         # sort by tag
-        df.sort_values(by=['model_tag'], inplace=True)
+        df.sort_values(by=['mean', 'model_tag'], ascending=False, inplace=True)
         df.to_csv(osp.join(out_dir, f"{m}_best_by_{best_by}.csv"), index=False)
     print(f"Results collected and saved in {out_dir}.")
