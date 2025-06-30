@@ -1,17 +1,19 @@
 import torch
-from data_utils import create_pred_dataset, check_early_stop, fix_seed
+from utils.data_utils import (
+    load_uspto_condition, check_early_stop, fix_seed
+)
 import argparse
 import time
 import os
 import pickle
-from Dataset import pred_fn
+from utils.Dataset import pred_fn
 from torch.utils.data import DataLoader
 from model import (
-    GtransEncoder, TranDec, PredictModel, PositionalEncoding,
-    GATEncoder
+    RAlignEncoder, DualGATEncoder, TranDec,
+    USPTOConditionModel, PositionalEncoding
 )
 from torch.optim.lr_scheduler import ExponentialLR
-from training import train_pred, eval_pred
+from training import train_uspto_condition, eval_uspto_condition
 import json
 
 
@@ -33,6 +35,10 @@ if __name__ == '__main__':
         help='the path of file containing the dataset'
     )
     parser.add_argument(
+        '--mapper_path', required=True, type=str,
+        help='the path for label mapper'
+    )
+    parser.add_argument(
         '--dim', type=int, default=512,
         help='the number of dim for model'
     )
@@ -49,7 +55,6 @@ if __name__ == '__main__':
         '--dropout', type=float, default=0.1,
         help='the dropout ratio for model'
     )
-
     parser.add_argument(
         '--warmup', type=int, default=0,
         help='the number of epochs for warmup'
@@ -104,12 +109,8 @@ if __name__ == '__main__':
         help='the random seed for training'
     )
     parser.add_argument(
-        '--transformer', action='store_true',
-        help='the use graph transformer or not'
-    )
-    parser.add_argument(
-        '--gate', choices=['add', 'cat', 'film'],
-        help='the update gate for graph transformer'
+        '--remove_align', action='store_true',
+        help='remove the aligned layer for model'
     )
 
     args = parser.parse_args()
@@ -122,48 +123,51 @@ if __name__ == '__main__':
         device = torch.device('cpu')
 
     train_set, val_set, test_set, remap = \
-        create_pred_dataset(args.data_path)
+        load_uspto_condition(args.data_path, args.mapper_path)
 
     log_dir, model_dir, token_dir = make_dir(args)
 
     train_loader = DataLoader(
-        train_set, batch_size=args.bs, collate_fn=pred_collate_fn,
+        train_set, batch_size=args.bs, collate_fn=pred_fn,
         shuffle=True, num_workers=args.num_worker,
     )
 
     val_loader = DataLoader(
-        val_set, batch_size=args.bs, collate_fn=pred_collate_fn,
+        val_set, batch_size=args.bs, collate_fn=pred_fn,
         shuffle=False, num_workers=args.num_worker
     )
 
     test_loader = DataLoader(
-        test_set, batch_size=args.bs, collate_fn=pred_collate_fn,
+        test_set, batch_size=args.bs, collate_fn=pred_fn,
         shuffle=False, num_workers=args.num_worker
     )
-    if args.transformer:
-        encoder = GtransEncoder(
-            emb_dim=args.dim, n_layers=args.n_layer, heads=args.heads,
-            dropout=args.dropout, negative_slope=args.negative_slope,
-            gate=args.gate
+
+    if args.remove_align:
+        encoder = DualGATEncoder(
+            emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
+            edge_dim=args.dim, dropout=args.dropout,
+            negative_slope=args.negative_slope, update_last_edge=False
         )
     else:
-        encoder = GATEncoder(
-            emb_dim=args.dim, n_layers=args.n_layer, heads=args.heads,
-            dropout=args.dropout, negative_slope=args.negative_slope
+        encoder = RAlignEncoder(
+            emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
+            edge_dim=args.dim, dropout=args.dropout,
+            negative_slope=args.negative_slope, update_last_edge=False
         )
+
     decoder = TranDec(
         n_layers=args.n_layer, emb_dim=args.dim, heads=args.heads,
         dropout=args.dropout, dim_ff=args.dim << 1
     )
     pos_env = PositionalEncoding(args.dim, args.dropout, maxlen=50)
 
-    model = PredictModel(
-        encoder=encoder, decoder=decoder, pos_enc=pos_env,
-        num_embs=len(remap), dim=args.dim, dropout=args.dropout
+    model = USPTOConditionModel(
+        encoder=encoder, decoder=decoder, pe=pos_env,
+        num_embs=len(remap), dim=args.dim
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    lr_sher = ExponentialLR(optimizer, gamma=args.lrgamma, verbose=True)
+    lr_sher = ExponentialLR(optimizer, gamma=args.lrgamma)
 
     log_info = {
         'args': args.__dict__, 'train_loss': [],
@@ -203,6 +207,7 @@ if __name__ == '__main__':
 
         if ep >= args.warmup and ep >= args.step_start:
             lr_sher.step()
+            print('[lr]', lr_sher.get_last_lr())
 
         with open(log_dir, 'w') as Fout:
             json.dump(log_info, Fout, indent=4)

@@ -315,7 +315,7 @@ def eval_gen(
     return accx.mean().item()
 
 
-def train_pred(
+def train_uspto_condition(
     loader, model, optimizer, device, heads=None,
     local_global=False, warmup=False
 ):
@@ -353,7 +353,7 @@ def train_pred(
     return np.mean(los_cur)
 
 
-def eval_pred(loader, model, device, heads=None, local_global=False):
+def eval_uspto_contion(loader, model, device, heads=None, local_global=False):
     model, accs, gt = model.eval(), [], []
     for reac, prod, label in tqdm(loader):
         reac, prod, label = reac.to(device), prod.to(device), label.to(device)

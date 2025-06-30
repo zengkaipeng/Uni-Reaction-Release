@@ -255,5 +255,45 @@ def check_early_stop(*args):
     return answer
 
 
-def load_uspto_condition(data_path, ):
-    pass
+def load_uspto_condition(data_path, mapper_path, verbose=True):
+    raw_info = pandas.read_csv(data_path)
+    raw_info = raw_info.fillna('')
+    raw_info = raw_info.to_dict('records')
+    with open(mapper_path) as Fin:
+        mapper = json.load(Fin)
+
+    mapper['<CLS>'] = mapper.get('<CLS>', len(mapper))
+
+    all_datas = {
+        'train_reac': [], 'train_label': [],
+        'val_reac': [], 'val_label': [],
+        'test_reac': [], 'test_label': []
+    }
+
+    iterx = tqdm(raw_info) if verbose else raw_info
+    for i, element in enumerate(iterx):
+        rxn_type = element['dataset']
+        all_datas[f'{rxn_type}_reac'].append(element['mapped_rxn'])
+        labels = [
+            mapper[element['catalyst1']],
+            mapper[element['solvent1']], mapper[element['solvent2']],
+            mapper[element['reagent1']], mapper[element['reagent2']]
+        ]
+        all_datas[f'{rxn_type}_label'].append(labels)
+
+    train_set = ReactionPredDataset(
+        reactions=all_datas['train_reac'],
+        labels=all_datas['train_label'], cls_id=mapper['<CLS>'],
+
+    )
+    val_set = ReactionPredDataset(
+        reactions=all_datas['val_reac'],
+        labels=all_datas['val_label'], cls_id=mapper['<CLS>']
+    )
+
+    test_set = ReactionPredDataset(
+        reactions=all_datas['test_reac'],
+        labels=all_datas['test_label'], cls_id=mapper["<CLS>"]
+    )
+
+    return train_set, val_set, test_set
