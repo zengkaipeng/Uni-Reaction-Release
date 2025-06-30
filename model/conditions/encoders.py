@@ -76,7 +76,7 @@ class AzConditionEncoder(torch.nn.Module):
             tp_gamma = self.temp_adapter_gamma(temperatures_feats)[:, None]
             tp_beta = self.temp_adapter_beta(temperatures_feats)[:, None]
         else:
-            temp_gamma = tp_beta = 0
+            tp_gamma = tp_beta = 0
 
         answer = {}
         for idx, key in enumerate(key_list):

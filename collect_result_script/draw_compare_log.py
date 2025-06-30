@@ -99,7 +99,7 @@ if __name__ == '__main__':
     all_metric = list(all_valid_log[0]['valid_metric'][0].keys())
 
     # colors = plt.cm.viridis(np.linspace(0, 1, len(all_valid_log)))
-    colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(all_valid_log))) 
+    colors = plt.cm.viridis(np.linspace(0, 1, len(all_valid_log))) 
 
     for metric in all_metric:
     # plot valid and test metrics
