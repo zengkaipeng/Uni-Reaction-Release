@@ -99,7 +99,10 @@ if __name__ == '__main__':
         '--condition_both', action='store_true',
         help='the add condition to both reactant and product'
     )
-
+    parser.add_argument(
+        '--loss', choices=['mse', 'kl'], default='kl',
+        help='the loss type for training'
+    )
     args = parser.parse_args()
     print(args)
 
@@ -166,7 +169,8 @@ if __name__ == '__main__':
 
     model = CNYieldModel(
         encoder=encoder, condition_encoder=condition_encoder,
-        dim=args.dim, dropout=args.dropout, heads=args.heads
+        dim=args.dim, dropout=args.dropout, heads=args.heads,
+        out_dim=1 if args.loss == 'mse' else 2
     ).to(device)
 
     total_params, trainable_params = count_parameters(model)
@@ -189,7 +193,7 @@ if __name__ == '__main__':
         print(f'[INFO] training epoch {ep}')
         loss = train_mol_yield(
             train_loader, model, optimizer, device, heads=args.heads,
-            warmup=(ep < args.warmup), local_global=True, loss_fun='kl'
+            warmup=(ep < args.warmup), local_global=True, loss_fun=args.loss
         )
         val_results = eval_mol_yield(
             val_loader, model, device, heads=args.heads, local_global=True

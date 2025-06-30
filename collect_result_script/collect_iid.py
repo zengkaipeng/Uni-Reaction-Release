@@ -31,7 +31,7 @@ if __name__ == '__main__':
             with open(osp.join(root, 'log.json'), 'r') as f:
                 log = json.load(f)
             args = log['args']
-            args.update({'log_dir': root})
+            # args.update({'log_dir': root})
             exp_dataset = args['data_path'].split('/')[-1]
             if not re.match(iid_marker, exp_dataset):
                 continue
@@ -47,7 +47,9 @@ if __name__ == '__main__':
             best_ep = np.argmax([x[best_by] for x in val_metric])
             best_test_result = log['test_metric'][best_ep]
             all_model_result[model_tag]['test_metric'][exp_dataset] = best_test_result
+            all_model_result[model_tag]['args'].update({f'log_{exp_dataset}' : root})
             all_model_result[model_tag]['best_ep'][exp_dataset] = best_ep
+
     
     if len(all_model_result) == 0:
         print("No IID datasets found with the specified marker.")
@@ -55,7 +57,7 @@ if __name__ == '__main__':
     # convert to DataFrame
     keep_cols = []
     one_model_name = list(all_model_result.keys())[0]
-    all_args = [col for col in all_model_result[one_model_name]['args'] if col not in set(exclude_args) - set(['log_dir'])]
+    all_args = [col for col in all_model_result[one_model_name]['args'] if col not in set(exclude_args) - set(['log_dir']) and not col.startswith('log_')]
     for col in all_args:
         if col in exclude_args:
             continue
@@ -79,7 +81,8 @@ if __name__ == '__main__':
         item = {'model_tag': new_tag}
 
         item.update(
-            {k: args_dict[k] for k in all_args}
+            # {k: args_dict[k] for k in all_args}
+            args_dict
         )
 
         for m in record.keys():
@@ -103,6 +106,6 @@ if __name__ == '__main__':
     for m in record.keys():
         df = pd.DataFrame(record[m])
         # sort by tag
-        df.sort_values(by=['model_tag'], inplace=True)
+        df.sort_values(by=['mean', 'model_tag'], ascending=False, inplace=True)
         df.to_csv(osp.join(out_dir, f"{m}_best_by_{best_by}.csv"), index=False)
     print(f"Results collected and saved in {out_dir}.")
