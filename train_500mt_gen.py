@@ -27,6 +27,7 @@ def make_dir(args):
     token_dir = os.path.join(detail_dir, 'token.pkl')
     return log_dir, model_dir, token_dir
 
+
 def get_args():
     parser = argparse.ArgumentParser('Parser for prediction model')
     parser.add_argument(
@@ -84,10 +85,6 @@ def get_args():
         help='the negative slope of model'
     )
     parser.add_argument(
-        '--local_global', action='store_true', default=True,
-        help='use local global attention for decoder'
-    )
-    parser.add_argument(
         '--device', type=int, default=0,
         help='the device id for traiing, negative for cpu'
     )
@@ -104,11 +101,6 @@ def get_args():
         '--seed', type=int, default=2025,
         help='the random seed for training'
     )
-    parser.add_argument(
-        '--gnn_only', action='store_true',
-        help='use only gnn as encoder'
-    )
-
     args = parser.parse_args()
     return args
 
@@ -143,19 +135,11 @@ if __name__ == '__main__':
         test_set, batch_size=args.bs, collate_fn=gen_fn,
         shuffle=False, num_workers=args.num_worker
     )
-    if args.gnn_only:
-        assert False, "NOT TEST"
-        encoder = DualMPNN(
-            emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
-            dropout=args.dropout, negative_slope=args.negative_slope
-        )
-    else:
-        encoder = RAlignEncoder(
-            emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
-            edge_dim=args.dim, dropout=args.dropout, 
-            negative_slope=args.negative_slope,
-            update_last_edge=False
-        )
+    encoder = RAlignEncoder(
+        emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
+        edge_dim=args.dim, dropout=args.dropout,
+        negative_slope=args.negative_slope, update_last_edge=False
+    )
     decoder = TranDec(
         n_layers=args.n_layer, emb_dim=args.dim, heads=args.heads,
         dropout=args.dropout, dim_ff=args.dim << 1
@@ -188,20 +172,17 @@ if __name__ == '__main__':
         loss = train_gen(
             loader=train_loader, model=model, optimizer=optimizer,
             device=device, pad_idx=pad_idx, heads=args.heads,
-            warmup=(ep < args.warmup), local_global=args.local_global,
-            toker=remap
+            warmup=(ep < args.warmup), local_global=True, toker=remap
         )
         val_results = eval_gen(
             loader=val_loader, model=model, device=device,
             pad_idx=pad_idx, end_idx=end_idx,
-            heads=args.heads, local_global=args.local_global,
-            toker=remap
+            heads=args.heads, local_global=True, toker=remap
         )
         test_results = eval_gen(
             loader=test_loader, model=model, device=device,
             pad_idx=pad_idx, end_idx=end_idx,
-            heads=args.heads, local_global=args.local_global,
-            toker=None if args.mode == 'prediction' else remap
+            heads=args.heads, local_global=True, toker=remap
         )
 
         print('[Train]:', loss)
