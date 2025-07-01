@@ -9,7 +9,8 @@ import pickle
 from utils.Dataset import gen_fn
 from torch.utils.data import DataLoader
 from model import (
-    TranDec, USPTO500MTModel, PositionalEncoding, RAlignEncoder
+    TranDec, USPTO500MTModel, PositionalEncoding, RAlignEncoder,
+    DualGATEncoder
 )
 from torch.optim.lr_scheduler import ExponentialLR
 from utils.training import train_gen, eval_gen
@@ -100,6 +101,14 @@ def get_args():
         '--seed', type=int, default=2025,
         help='the random seed for training'
     )
+    parser.add_argument(
+        '--local_global', action='store_true',
+        help='use the local global decoder'
+    )
+    parser.add_argument(
+        '--remove_align', action='store_true',
+        help='remove the alignment in encoder'
+    )
     args = parser.parse_args()
     return args
 
@@ -134,11 +143,18 @@ if __name__ == '__main__':
         test_set, batch_size=args.bs, collate_fn=gen_fn,
         shuffle=False, num_workers=args.num_worker
     )
-    encoder = RAlignEncoder(
-        emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
-        edge_dim=args.dim, dropout=args.dropout,
-        negative_slope=args.negative_slope, update_last_edge=False
-    )
+    if args.remove_align:
+        encoder = DualGATEncoder(
+            emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
+            edge_dim=args.dim, dropout=args.dropout,
+            negative_slope=args.negative_slope, update_last_edge=False
+        )
+    else:
+        encoder = RAlignEncoder(
+            emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
+            edge_dim=args.dim, dropout=args.dropout,
+            negative_slope=args.negative_slope, update_last_edge=False
+        )
     decoder = TranDec(
         n_layers=args.n_layer, emb_dim=args.dim, heads=args.heads,
         dropout=args.dropout, dim_ff=args.dim << 1
@@ -151,7 +167,7 @@ if __name__ == '__main__':
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    lr_sher = ExponentialLR(optimizer, gamma=args.lrgamma, verbose=True)
+    lr_sher = ExponentialLR(optimizer, gamma=args.lrgamma)
 
     log_info = {
         'args': args.__dict__, 'train_loss': [],
@@ -170,18 +186,18 @@ if __name__ == '__main__':
         print(f'[INFO] training epoch {ep}')
         loss = train_gen(
             loader=train_loader, model=model, optimizer=optimizer,
-            device=device, pad_idx=pad_idx, heads=args.heads,
-            warmup=(ep < args.warmup), local_global=True, toker=remap
+            device=device, pad_idx=pad_idx, heads=args.heads, toker=remap,
+            warmup=(ep < args.warmup), local_global=args.local_global
         )
         val_results = eval_gen(
             loader=val_loader, model=model, device=device,
-            pad_idx=pad_idx, end_idx=end_idx,
-            heads=args.heads, local_global=True, toker=remap
+            pad_idx=pad_idx, end_idx=end_idx, toker=remap,
+            heads=args.heads, local_global=args.local_global
         )
         test_results = eval_gen(
             loader=test_loader, model=model, device=device,
-            pad_idx=pad_idx, end_idx=end_idx,
-            heads=args.heads, local_global=True, toker=remap
+            pad_idx=pad_idx, end_idx=end_idx, toker=remap,
+            heads=args.heads, local_global=args.local_global
         )
 
         print('[Train]:', loss)
@@ -194,6 +210,7 @@ if __name__ == '__main__':
 
         if ep >= args.warmup and ep >= args.step_start:
             lr_sher.step()
+            print('[lr]', lr_sher.get_last_lr())
 
         with open(log_dir, 'w') as Fout:
             json.dump(log_info, Fout, indent=4)
