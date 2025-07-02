@@ -3,6 +3,8 @@ from rdkit import Chem
 import os
 import argparse
 import pandas
+import json
+from tqdm import tqdm
 
 
 def cano_x(x):
@@ -34,7 +36,7 @@ if __name__ == '__main__':
     for idx, x in raw_info.iterrows():
         all_raw_mols.update([x[t] for t in labels_list])
 
-    for x in all_raw_mols:
+    for x in tqdm(all_raw_mols):
         raw_to_cano[x] = canoed_x = cano_x(x)
         mapper[canoed_x] = mapper.get(canoed_x, len(mapper))
 
@@ -44,3 +46,6 @@ if __name__ == '__main__':
     print('before_cano: {} after_cano: {}'.format(
         len(raw_to_cano), len(mapper)
     ))
+
+    with open(args.vocab_path, 'w') as Fout:
+        json.dump(mapper, Fout, indent=4)

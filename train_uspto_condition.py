@@ -1,7 +1,5 @@
 import torch
-from utils.data_utils import (
-    load_uspto_condition, check_early_stop, fix_seed
-)
+from utils.data_utils import load_uspto_condition, check_early_stop, fix_seed
 import argparse
 import time
 import os
@@ -13,7 +11,7 @@ from model import (
     USPTOConditionModel, PositionalEncoding
 )
 from torch.optim.lr_scheduler import ExponentialLR
-from training import train_uspto_condition, eval_uspto_condition
+from utils.training import train_uspto_condition, eval_uspto_condition
 import json
 
 
