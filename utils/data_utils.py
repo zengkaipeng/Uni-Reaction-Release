@@ -256,13 +256,14 @@ def check_early_stop(*args):
     return answer
 
 
-def load_uspto_condition(data_path, mapper_path, verbose=True):
+def load_uspto_condition(data_path, mapper_path='', verbose=True, mapper=None):
     raw_info = pandas.read_csv(data_path)
     raw_info = raw_info.fillna('')
     raw_info = raw_info.to_dict('records')
-    with open(mapper_path) as Fin:
-        mapper = json.load(Fin)
 
+    if mapper is not None:
+        with open(mapper_path) as Fin:
+            mapper = json.load(Fin)
     mapper['<CLS>'] = mapper.get('<CLS>', len(mapper))
 
     all_datas = {
