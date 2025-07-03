@@ -31,7 +31,7 @@ def make_dir(args):
     return log_dir, model_dir, token_dir
 
 
-def main_worker(worker_idx, args, remap, log_dir, model_dir):
+def main_worker(worker_idx, args, log_dir, model_dir, token_dir):
     print(f'[INFO] Process {worker_idx} start')
     torch_dist.init_process_group(
         backend='nccl', init_method=f'tcp://127.0.0.1:{args.port}',
@@ -109,7 +109,6 @@ def main_worker(worker_idx, args, remap, log_dir, model_dir):
 
     model = torch.nn.parallel.DistributedDataParallel(
         model, device_ids=[worker_idx], output_device=worker_idx,
-        find_unused_parameters=True
     )
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -289,5 +288,5 @@ if __name__ == '__main__':
 
     torch_mp.spawn(
         main_worker, nprocs=args.num_gpus,
-        args=(args, remap, log_dir, model_dir)
+        args=(args, log_dir, model_dir, token_dir)
     )

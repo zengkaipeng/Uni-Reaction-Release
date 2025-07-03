@@ -261,7 +261,7 @@ def load_uspto_condition(data_path, mapper_path='', verbose=True, mapper=None):
     raw_info = raw_info.fillna('')
     raw_info = raw_info.to_dict('records')
 
-    if mapper is not None:
+    if mapper is None:
         with open(mapper_path) as Fin:
             mapper = json.load(Fin)
     mapper['<CLS>'] = mapper.get('<CLS>', len(mapper))
