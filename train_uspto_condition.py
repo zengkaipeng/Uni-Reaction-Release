@@ -161,7 +161,7 @@ if __name__ == '__main__':
 
     model = USPTOConditionModel(
         encoder=encoder, decoder=decoder, pe=pos_env,
-        num_embs=len(remap), dim=args.dim
+        n_words=len(remap), dim=args.dim
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -182,15 +182,15 @@ if __name__ == '__main__':
 
     for ep in range(args.epoch):
         print(f'[INFO] training epoch {ep}')
-        loss = train_pred(
+        loss = train_uspto_condition(
             train_loader, model, optimizer, device, heads=args.heads,
             warmup=(ep < args.warmup), local_global=args.local_global
         )
-        val_results = eval_pred(
+        val_results = eval_uspto_condition(
             val_loader, model, device, heads=args.heads,
             local_global=args.local_global
         )
-        test_results = eval_pred(
+        test_results = eval_uspto_condition(
             test_loader, model, device, heads=args.heads,
             local_global=args.local_global
         )

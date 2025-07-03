@@ -2,7 +2,10 @@ import torch
 from .layers import DotMhAttn
 from .utils import graph2batch
 from .conditions import NumEmbeddingWithNan, NumEmbedding
-from utils.tensor_utils import generate_square_subsequent_mask, generate_topk_mask
+from utils.tensor_utils import (
+    generate_square_subsequent_mask, generate_topk_mask
+)
+
 
 class RegressionModel(torch.nn.Module):
     def __init__(self, encoder, condition_encoder, dim, heads, dropout=0.1):
@@ -50,8 +53,11 @@ class RegressionModel(torch.nn.Module):
         reaction_emb = self.xln(pooled_results.squeeze(dim=1))
         return self.out_head(reaction_emb)
 
+
 class CNYieldModel(torch.nn.Module):
-    def __init__(self, encoder, condition_encoder, dim, heads, dropout=0.1, out_dim=2):
+    def __init__(
+        self, encoder, condition_encoder, dim, heads, dropout=0.1, out_dim=2
+    ):
         super(CNYieldModel, self).__init__()
         self.encoder = encoder
         self.condition_encoder = condition_encoder
@@ -110,7 +116,7 @@ class USPTOConditionModel(torch.nn.Module):
         self.out_layer = torch.nn.Sequential(
             torch.nn.Linear(dim, dim),
             torch.nn.GELU(),
-            torch.nn.Linear(dim, num_embs)
+            torch.nn.Linear(dim, n_words)
         )
 
     def encode(self, reac_graph, prod_graph):
@@ -129,7 +135,7 @@ class USPTOConditionModel(torch.nn.Module):
         tgt_mask=None, tgt_key_padding_mask=None
     ):
         type_emb = torch.stack([
-            self.zeros_like(self.cat_emb), self.cat_emb,
+            torch.zeros_like(self.cat_emb), self.cat_emb,
             self.sov_emb, self.sov_emb, self.reg_emb
         ], dim=0)
         seq_emb = self.pe(self.word_emb(seq) + type_emb[:seq.shape[-1]])

@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import os
 import json
+from tqdm import tqdm
 
 from .Dataset import (
     CNYieldDataset, AzYieldDataset, SMYieldDataset,
@@ -296,4 +297,4 @@ def load_uspto_condition(data_path, mapper_path, verbose=True):
         labels=all_datas['test_label'], cls_id=mapper["<CLS>"]
     )
 
-    return train_set, val_set, test_set
+    return train_set, val_set, test_set, mapper
