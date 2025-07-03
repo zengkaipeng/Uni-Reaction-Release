@@ -215,7 +215,7 @@ def train_regression(
     return np.mean(los_cur)
 
 
-def eval_regression(loader, model, device, heads=None, local_global=False):
+def eval_regression(loader, model, device, heads=None, local_global=False, return_raw=False):
     model, ytrue, ypred = model.eval(), [], []
     for reac, prod, reag, label in tqdm(loader):
         reac, prod, reag = reac.to(device), prod.to(device), reag.to(device)
@@ -232,12 +232,16 @@ def eval_regression(loader, model, device, heads=None, local_global=False):
     ypred = np.concatenate(ypred, axis=0)
     ytrue = np.concatenate(ytrue, axis=0)
 
-    return {
+    result = {
         'MAE': float(mean_absolute_error(ytrue, ypred)),
         'MSE': float(mean_squared_error(ytrue, ypred)),
         'R2': float(r2_score(ytrue, ypred))
     }
 
+    if return_raw:
+        result['ytrue'] = ytrue
+        result['ypred'] = ypred
+    return result
 
 def train_gen(
     loader, model, optimizer, device, pad_idx, toker,
