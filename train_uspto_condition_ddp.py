@@ -90,8 +90,9 @@ def main_worker(worker_idx, args, log_dir, model_dir, token_dir):
             negative_slope=args.negative_slope, update_last_edge=False
         )
 
+    dec_layer = args.n_layer if args.decoder_layer <= 0 else args.decoder_layer
     decoder = TranDec(
-        n_layers=args.n_layer, emb_dim=args.dim, heads=args.heads,
+        n_layers=dec_layer, emb_dim=args.dim, heads=args.heads,
         dropout=args.dropout, dim_ff=args.dim << 1
     )
     pos_env = PositionalEncoding(args.dim, args.dropout, maxlen=50)
@@ -279,6 +280,11 @@ if __name__ == '__main__':
     parser.add_argument(
         '--remove_align', action='store_true',
         help='remove the align layer in encoder'
+    )
+    parser.add_argument(
+        '--decoder_layer', type=int, default=-1,
+        help='the layers of decoder, non-positive ' +
+        "to set it the same as n_layer"
     )
 
     args = parser.parse_args()
