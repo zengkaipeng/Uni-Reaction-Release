@@ -353,13 +353,9 @@ class SMYieldDataset(RAlignDatasetBase):
 class ReactionPredDataset(RAlignDatasetBase):
     def __init__(self, reactions, labels, cls_id, end_id=None):
         super(ReactionPredDataset, self).__init__(reactions)
-        self.reactions = reactions
         self.labels = labels
         self.cls_id = cls_id
         self.end_id = end_id
-
-    def __len__(self):
-        return len(self.reactions)
 
     def __getitem__(self, idx):
         reac_mol, prod_mol = self.get_aligned_graphs(idx)
@@ -373,10 +369,29 @@ class ReactionPredDataset(RAlignDatasetBase):
 def gen_fn(batch):
     reac = graph_col_fn([x[0] for x in batch])
     prod = graph_col_fn([x[1] for x in batch])
-    return reac, prod, [x[2] for x in batch]
+    if len(batch[0]) == 3:
+        return reac, prod, [x[2] for x in batch]
+    else:
+        return reac, prod
 
 
 def pred_fn(batch):
     reac = graph_col_fn([x[0] for x in batch])
     prod = graph_col_fn([x[1] for x in batch])
-    return reac, prod, torch.LongTensor([x[2] for x in batch])
+    if len(batch[0]) == 3:
+        return reac, prod, torch.LongTensor([x[2] for x in batch])
+    else:
+        return reac, prod
+
+
+class ReactionSeqInferenceDataset(RAlignDatasetBase):
+    def __init__(self, reactions, labels=None):
+        super(ReactionSeqInferenceDataset, self).__init__(reactions)
+        self.labels = labels
+
+    def __getitem__(self, idx):
+        reac_mol, prod_mol = self.get_aligned_graphs(idx)
+        if self.labels != None:
+            return reac_mol, prod_mol, self.labels[idx]
+        else:
+            return reac_mol, prod_mol
