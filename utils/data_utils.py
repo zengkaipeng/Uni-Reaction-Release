@@ -7,8 +7,8 @@ import json
 from tqdm import tqdm
 
 from .Dataset import (
-    CNYieldDataset, AzYieldDataset, SMYieldDataset,
-    SelDataset, ReactionPredDataset
+    CNYieldDataset, AzYieldDataset, SMYieldDataset, SelDataset,
+    ReactionPredDataset, ReactionSeqInfereceDataset
 )
 
 from .tokenlizer import Tokenizer, smi_tokenizer
@@ -247,6 +247,18 @@ def load_uspto_mt_500_gen(data_path, remap=None, part=None):
     )
 
     return train_set, val_set, test_set, remap
+
+
+def load_uspto_mt500_inference(data_path, remap):
+    rxns, labels = [], []
+    with open(data_path) as F:
+        setx = json.load(F)
+        for lin in setx:
+            rxns.append(lin['new_mapped_rxn'])
+            labels.append(lin['reagent_list'])
+
+    dataset = ReactionSeqInferenceDataset(reactions=rxns, labels=labels)
+    return dataset
 
 
 def check_early_stop(*args):

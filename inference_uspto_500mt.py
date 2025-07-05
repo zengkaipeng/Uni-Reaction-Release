@@ -9,6 +9,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from utils.chemistry_parse import canonical_rxn
 from utils.inference import inference_500mt
+from utils.Dataset import gen_fn
 
 from model import (
     TranDec, USPTO500MTModel, PositionalEncoding,
