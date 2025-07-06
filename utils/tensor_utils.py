@@ -1,5 +1,6 @@
 import torch
 
+
 def convert_log_into_label(logits, mod='sigmoid'):
     if mod == 'sigmoid':
         pred = torch.zeros_like(logits)
@@ -46,7 +47,7 @@ def generate_tgt_mask(tgt, pad_idx, device='cpu'):
     return tgt_pad_mask, tgt_sub_mask
 
 
-def generate_local_global_mask(reac, prod, Qlen, heads):
+def generate_local_global_mask(reac, prod, Qlen, total_heads, local_heads):
     assert heads >= 2, 'heads too small for dividing'
     reac_rc = torch.zeros_like(reac.batch_mask)
     prod_rc = torch.zeros_like(prod.batch_mask)
@@ -59,9 +60,8 @@ def generate_local_global_mask(reac, prod, Qlen, heads):
 
     global_mask = torch.ones_like(rcx)
 
-    x, y = heads >> 1, heads - (heads >> 1)
-    rcx = rcx.repeat(1, Qlen, 1, x)
-    global_mask = global_mask.repeat(1, Qlen, 1, y)
+    rcx = rcx.repeat(1, Qlen, 1, local_heads)
+    global_mask = global_mask.repeat(1, Qlen, 1, total_heads - local_heads)
     return torch.logical_not(torch.cat([rcx, global_mask], dim=-1))
 
 
@@ -75,6 +75,7 @@ def generate_topk_mask(belong, max_num, k):
     top_k_mask = torch.logical_and(cir_x <= k, eq_mask)
     # i row: top-k of belong i
     return torch.any(top_k_mask, dim=0)
+
 
 def calc_trans_loss(trans_pred, trans_lb, ignore_index):
     batch_size, maxl, num_c = trans_pred.shape

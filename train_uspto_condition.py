@@ -90,8 +90,8 @@ if __name__ == '__main__':
         help='the negative slope of model'
     )
     parser.add_argument(
-        '--local_global', action='store_true',
-        help='use local global attention for decoder'
+        '--local_heads', type=int, default=0,
+        help='the number of local heads in attention'
     )
     parser.add_argument(
         '--device', type=int, default=0,
@@ -188,16 +188,16 @@ if __name__ == '__main__':
     for ep in range(args.epoch):
         print(f'[INFO] training epoch {ep}')
         loss = train_uspto_condition(
-            train_loader, model, optimizer, device, heads=args.heads,
-            warmup=(ep < args.warmup), local_global=args.local_global
+            train_loader, model, optimizer, device, total_heads=args.heads,
+            warmup=(ep < args.warmup), local_heads=args.local_heads
         )
         val_results = eval_uspto_condition(
-            val_loader, model, device, heads=args.heads,
-            local_global=args.local_global
+            val_loader, model, device, total_heads=args.heads,
+            local_heads=args.local_heads
         )
         test_results = eval_uspto_condition(
-            test_loader, model, device, heads=args.heads,
-            local_global=args.local_global
+            test_loader, model, device, total_heads=args.heads,
+            local_heads=args.local_heads
         )
 
         print('[Train]:', loss)

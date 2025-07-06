@@ -89,11 +89,9 @@ class MetricManager(object):
 
 
 def ddp_train_uspto_condition(
-    loader, model, optimizer, device, heads=None,
-    local_global=False, warmup=False, verbose=False
+    loader, model, optimizer, device, total_heads=None,
+    local_heads=0, warmup=False, verbose=False
 ):
-    if local_global and heads is None:
-        raise ValueError("require num heads for local global mask")
     model = model.train()
     loss_cur = MetricCollector(name='train_loss', type_fmt=':.2f')
     manager = MetricManager([loss_cur])
@@ -116,9 +114,11 @@ def ddp_train_uspto_condition(
         pad_mask = pad_mask.to(device, non_blocking=True)
         sub_mask = sub_mask.to(device, non_blocking=True)
 
-        if local_global:
-            Qlen = tgt_in.shape[1]
-            cross_mask = generate_local_global_mask(reac, prod, Qlen, heads)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, tgt_in.shape[1], total_heads, local_heads
+            )
         else:
             cross_mask = None
         res = model(
@@ -142,7 +142,7 @@ def ddp_train_uspto_condition(
 
 
 def ddp_eval_uspto_condition(
-    loader, model, device, heads=None, local_global=False, verbose=False
+    loader, model, device, total_heads=None, local_heads=0, verbose=False
 ):
     model = model.eval()
     cat_acc = MetricCollector('catalyst', type_fmt=':.2f')
@@ -169,9 +169,11 @@ def ddp_eval_uspto_condition(
         pad_mask = pad_mask.to(device, non_blocking=True)
         sub_mask = sub_mask.to(device, non_blocking=True)
 
-        if local_global:
-            Qlen = tgt_in.shape[1]
-            cross_mask = generate_local_global_mask(reac, prod, Qlen, heads)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, tgt_in.shape[1], total_heads, local_heads
+            )
         else:
             cross_mask = None
 

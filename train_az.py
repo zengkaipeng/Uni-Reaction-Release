@@ -141,6 +141,11 @@ if __name__ == '__main__':
         help='the loss type for training'
     )
 
+    parser.add_argument(
+        '--local_heads', type=int, default=0,
+        help='the number of local heads in attention'
+    )
+
     args = parser.parse_args()
     print(args)
 
@@ -249,14 +254,17 @@ if __name__ == '__main__':
     for ep in range(args.epoch):
         print(f'[INFO] training epoch {ep}')
         loss = train_az_yield(
-            train_loader, model, optimizer, device, heads=args.heads,
-            warmup=(ep < args.warmup), local_global=True, loss_fun=args.loss
+            train_loader, model, optimizer, device, warmup=(ep < args.warmup),
+            total_heads=args.heads, local_heads=args.local_heads,
+            loss_fun=args.loss
         )
         val_results = eval_az_yield(
-            val_loader, model, device, heads=args.heads, local_global=True
+            val_loader, model, device, total_heads=args.heads,
+            local_heads=args.local_heads
         )
         test_results = eval_az_yield(
-            test_loader, model, device, heads=args.heads, local_global=True
+            test_loader, model, device, total_heads=args.heads,
+            local_heads=args.local_heads
         )
 
         print('[Train]:', loss)

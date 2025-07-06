@@ -127,17 +127,17 @@ def main_worker(worker_idx, args, log_dir, model_dir, token_dir):
             print(f'[INFO] training epoch {ep}')
         train_sampler.set_epoch(ep)
         loss = ddp_train_uspto_condition(
-            train_loader, model, optimizer, device, heads=args.heads,
-            warmup=(ep < args.warmup), local_global=args.local_global,
-            verbose=verbose
+            train_loader, model, optimizer, device,
+            total_heads=args.heads, local_heads=args.local_heads,
+            warmup=(ep < args.warmup), verbose=verbose
         )
         val_results = ddp_eval_uspto_condition(
-            val_loader, model, device, heads=args.heads,
-            local_global=args.local_global, verbose=verbose
+            val_loader, model, device, total_heads=args.heads,
+            local_heads=args.local_heads, verbose=verbose
         )
         test_results = ddp_eval_uspto_condition(
-            test_loader, model, device, heads=args.heads,
-            local_global=args.local_global, verbose=verbose
+            test_loader, model, device, total_heads=args.heads,
+            local_heads=args.local_heads, verbose=verbose
         )
 
         torch_dist.barrier()
@@ -245,8 +245,8 @@ if __name__ == '__main__':
         help='the negative slope of model'
     )
     parser.add_argument(
-        '--local_global', action='store_true',
-        help='use local global attention for decoder'
+        '--local_heads', type=int, default=0,
+        help='the number of local heads in attention for decoder'
     )
     parser.add_argument(
         '--num_gpus', type=int, default=0,

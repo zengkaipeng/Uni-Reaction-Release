@@ -6,10 +6,8 @@ from torch.nn.functional import kl_div, mse_loss
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 from ..tensor_utils import (
-    generate_local_global_mask,
-    generate_tgt_mask, calc_trans_loss,
-    correct_trans_output, data_eval_trans,
-    convert_log_into_label
+    generate_local_global_mask, generate_tgt_mask, calc_trans_loss,
+    correct_trans_output, data_eval_trans, convert_log_into_label
 )
 
 
@@ -24,11 +22,9 @@ def warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor):
 
 
 def train_mol_yield(
-    loader, model, optimizer, device, heads=None,
-    local_global=False, warmup=False, loss_fun='kl'
+    loader, model, optimizer, device, total_heads=None,
+    local_heads=0, warmup=False, loss_fun='kl'
 ):
-    if local_global and heads is None:
-        raise ValueError("require num heads for local global mask")
     model, los_cur = model.train(), []
     if warmup:
         warmup_iters = len(loader) - 1
@@ -37,8 +33,11 @@ def train_mol_yield(
     for reac, prod, reag, label in tqdm(loader):
         reac, prod = reac.to(device), prod.to(device)
         reag, label = reag.to(device), label.to(device)
-        if local_global:
-            cross_mask = generate_local_global_mask(reac, prod, 1, heads)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, 1, total_heads, local_heads
+            )
         else:
             cross_mask = None
 
@@ -63,12 +62,17 @@ def train_mol_yield(
     return np.mean(los_cur)
 
 
-def eval_mol_yield(loader, model, device, heads=None, local_global=False, return_raw=False):
+def eval_mol_yield(
+    loader, model, device, total_heads=None, local_heads=0, return_raw=False
+):
     model, ytrue, ypred = model.eval(), [], []
     for reac, prod, reag, label in tqdm(loader):
         reac, prod, reag = reac.to(device), prod.to(device), reag.to(device)
-        if local_global:
-            cross_mask = generate_local_global_mask(reac, prod, 1, heads)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, 1, total_heads, local_heads
+            )
         else:
             cross_mask = None
 
@@ -99,11 +103,9 @@ def eval_mol_yield(loader, model, device, heads=None, local_global=False, return
 
 
 def train_az_yield(
-    loader, model, optimizer, device, heads=None,
-    local_global=False, warmup=False, loss_fun='kl'
+    loader, model, optimizer, device, total_heads=None,
+    local_heads=0, warmup=False, loss_fun='kl'
 ):
-    if local_global and heads is None:
-        raise ValueError("require num heads for local global mask")
     model, los_cur = model.train(), []
     if warmup:
         warmup_iters = len(loader) - 1
@@ -116,8 +118,11 @@ def train_az_yield(
         label = torch.clamp(label, 0, 100)
         vols = {k: v.to(device) for k, v in vols.items()}
 
-        if local_global:
-            cross_mask = generate_local_global_mask(reac, prod, 1, heads)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, 1, total_heads, local_heads
+            )
         else:
             cross_mask = None
 
@@ -145,7 +150,7 @@ def train_az_yield(
     return np.mean(los_cur)
 
 
-def eval_az_yield(loader, model, device, heads=None, local_global=False):
+def eval_az_yield(loader, model, device, total_heads=None, local_heads=0):
     model, ytrue, ypred = model.eval(), [], []
     for data in tqdm(loader):
         reac, prod, reag, vols, temps, label = data
@@ -153,8 +158,11 @@ def eval_az_yield(loader, model, device, heads=None, local_global=False):
         reag, temps = reag.to(device), temps.to(device)
         vols = {k: v.to(device) for k, v in vols.items()}
         label = torch.clamp(label, 0, 100)
-        if local_global:
-            cross_mask = generate_local_global_mask(reac, prod, 1, heads)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, 1, total_heads, local_heads
+            )
         else:
             cross_mask = None
 
@@ -183,8 +191,8 @@ def eval_az_yield(loader, model, device, heads=None, local_global=False):
 
 
 def train_regression(
-    loader, model, optimizer, device, heads=None,
-    local_global=False, warmup=False
+    loader, model, optimizer, device, total_heads=None,
+    local_heads=0, warmup=False
 ):
     if local_global and heads is None:
         raise ValueError("require num heads for local global mask")
@@ -196,8 +204,11 @@ def train_regression(
     for reac, prod, reag, label in tqdm(loader):
         reac, prod = reac.to(device), prod.to(device)
         reag, label = reag.to(device), label.to(device)
-        if local_global:
-            cross_mask = generate_local_global_mask(reac, prod, 1, heads)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, 1, total_heads, local_heads
+            )
         else:
             cross_mask = None
 
@@ -215,12 +226,17 @@ def train_regression(
     return np.mean(los_cur)
 
 
-def eval_regression(loader, model, device, heads=None, local_global=False, return_raw=False):
+def eval_regression(
+    loader, model, device, total_heads=None, local_heads=0, return_raw=False
+):
     model, ytrue, ypred = model.eval(), [], []
     for reac, prod, reag, label in tqdm(loader):
         reac, prod, reag = reac.to(device), prod.to(device), reag.to(device)
-        if local_global:
-            cross_mask = generate_local_global_mask(reac, prod, 1, heads)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, 1, total_heads, local_heads
+            )
         else:
             cross_mask = None
 
@@ -243,9 +259,10 @@ def eval_regression(loader, model, device, heads=None, local_global=False, retur
         result['ypred'] = ypred
     return result
 
+
 def train_gen(
     loader, model, optimizer, device, pad_idx, toker,
-    heads=None, local_global=False, warmup=False,
+    total_heads=None, local_heads=0, warmup=False,
 ):
     if local_global and heads is None:
         raise ValueError("require num heads for local global mask")
@@ -264,9 +281,13 @@ def train_gen(
         trans_op_mask, diag_mask = generate_tgt_mask(
             trans_dec_ip, pad_idx=pad_idx, device=device
         )
-        if local_global:
-            Qlen = trans_dec_ip.shape[1]
-            cross_mask = generate_local_global_mask(reac, prod, Qlen, heads)
+
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, trans_dec_ip.shape[1],
+                total_heads, local_heads
+            )
         else:
             cross_mask = None
 
@@ -289,7 +310,7 @@ def train_gen(
 
 def eval_gen(
     loader, model, device, pad_idx, end_idx,
-    toker, heads=None, local_global=False
+    toker, total_heads=None, local_heads=0
 ):
     model, accx = model.eval(), []
     for reac, prod, label in tqdm(loader):
@@ -302,9 +323,13 @@ def eval_gen(
         trans_op_mask, diag_mask = generate_tgt_mask(
             trans_dec_ip, pad_idx=pad_idx, device=device
         )
-        if local_global:
-            Qlen = trans_dec_ip.shape[1]
-            cross_mask = generate_local_global_mask(reac, prod, Qlen, heads)
+
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, trans_dec_ip.shape[1],
+                total_heads, local_heads
+            )
         else:
             cross_mask = None
 
@@ -325,11 +350,9 @@ def eval_gen(
 
 
 def train_uspto_condition(
-    loader, model, optimizer, device, heads=None,
-    local_global=False, warmup=False
+    loader, model, optimizer, device, total_heads=None,
+    local_heads=0, warmup=False
 ):
-    if local_global and heads is None:
-        raise ValueError("require num heads for local global mask")
     model, los_cur = model.train(), []
     if warmup:
         warmup_iters = len(loader) - 1
@@ -341,11 +364,14 @@ def train_uspto_condition(
 
         pad_mask, sub_mask = generate_tgt_mask(tgt_in, -1000, device)
 
-        if local_global:
-            Qlen = tgt_in.shape[1]
-            cross_mask = generate_local_global_mask(reac, prod, Qlen, heads)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, tgt_in.shape[1], total_heads, local_heads
+            )
         else:
             cross_mask = None
+
         res = model(
             reac, prod, tgt_in, tgt_mask=sub_mask,
             tgt_key_padding_mask=pad_mask, cross_mask=cross_mask
@@ -363,7 +389,7 @@ def train_uspto_condition(
 
 
 def eval_uspto_condition(
-    loader, model, device, heads=None, local_global=False
+    loader, model, device, total_heads=None, local_heads=0
 ):
     model, accs, gt = model.eval(), [], []
     for reac, prod, label in tqdm(loader):
@@ -371,9 +397,11 @@ def eval_uspto_condition(
         tgt_in, tgt_out = label[:, :-1], label[:, 1:]
         pad_mask, sub_mask = generate_tgt_mask(tgt_in, -1000, device)
 
-        if local_global:
-            Qlen = tgt_in.shape[1]
-            cross_mask = generate_local_global_mask(reac, prod, Qlen, heads)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, tgt_in.shape[1], total_heads, local_heads
+            )
         else:
             cross_mask = None
 
