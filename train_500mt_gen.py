@@ -102,8 +102,8 @@ def get_args():
         help='the random seed for training'
     )
     parser.add_argument(
-        '--local_global', action='store_true',
-        help='use the local global decoder'
+        '--local_heads', type=int, default=0,
+        help='the number of local heads in attention'
     )
     parser.add_argument(
         '--remove_align', action='store_true',
@@ -185,19 +185,19 @@ if __name__ == '__main__':
     for ep in range(args.epoch):
         print(f'[INFO] training epoch {ep}')
         loss = train_gen(
-            loader=train_loader, model=model, optimizer=optimizer,
-            device=device, pad_idx=pad_idx, heads=args.heads, toker=remap,
-            warmup=(ep < args.warmup), local_global=args.local_global
+            loader=train_loader, model=model, optimizer=optimizer, toker=remap,
+            device=device, pad_idx=pad_idx, total_heads=args.heads,
+            warmup=(ep < args.warmup), local_heads=args.local_heads
         )
         val_results = eval_gen(
             loader=val_loader, model=model, device=device,
             pad_idx=pad_idx, end_idx=end_idx, toker=remap,
-            heads=args.heads, local_global=args.local_global
+            total_heads=args.heads, local_heads=args.local_heads
         )
         test_results = eval_gen(
             loader=test_loader, model=model, device=device,
             pad_idx=pad_idx, end_idx=end_idx, toker=remap,
-            heads=args.heads, local_global=args.local_global
+            total_heads=args.heads, local_heads=args.local_heads
         )
 
         print('[Train]:', loss)

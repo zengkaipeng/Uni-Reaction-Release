@@ -8,8 +8,9 @@ import json
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from utils.chemistry_parse import canonical_rxn
-from utils.inference import inference_500mt
-from utils.Dataset import gen_fn
+from utils.inference import beam_search_500mt
+from utils.Dataset import gen_inf_fn
+from utils.data_utils import load_uspto_mt500_inference
 
 from model import (
     TranDec, USPTO500MTModel, PositionalEncoding,
@@ -40,8 +41,8 @@ if __name__ == '__main__':
         help='the negative slope of model'
     )
     parser.add_argument(
-        '--local_global', action='store_true',
-        help='use local global attention for decoder'
+        '--local_heads', type=int, default=0,
+        help='the number of local heads in attention'
     )
     parser.add_argument(
         '--device', type=int, default=0,
@@ -68,12 +69,20 @@ if __name__ == '__main__':
         help='the size for beam searching'
     )
     parser.add_argument(
-        '--max_len', type=int, default=300,
+        '--max_len', type=int, default=500,
         help='the maximal sequence number for inference'
     )
     parser.add_argument(
         '--remove_align', action='store_true',
         help='remove the alignment in encoder'
+    )
+    parser.add_argument(
+        '--batch_size', type=int, default=128,
+        help='the batch size for inference'
+    )
+    parser.add_argument(
+        '--num_workers', type=int, default=4,
+        help='the number of workers for inference'
     )
 
     args = parser.parse_args()
@@ -115,61 +124,42 @@ if __name__ == '__main__':
     model.load_state_dict(model_weight)
     model = model.eval()
 
-    prediction_results = []
-    rxn2gt = {}
+    test_set = load_uspto_mt500_inference(args.data_path, remap)
+    loader = DataLoader(
+        test_set, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.num_workers, collate_fn=gen_inf_fn
+    )
 
-    with open(args.data_path) as Fin:
-        raw_info = json.load(Fin)
-
+    prediction_results, save_res, rxn2gt = [], 0, {}
     out_file = os.path.join(args.output_dir, f'answer-{time.time()}.json')
 
-    
-    for idx, line in enumerate(tqdm(raw_info)):
-        query_rxn = line['new_mapped_rxn']
-        key = canonical_rxn(query_rxn)
-        if args.mode == 'prediction':
-            gt = sorted([remap[x] for x in line['reagent_list']])
-        else:
-            gt = '.'.join(line['reagent_list'])
+    for reac, prod, raw_info, labels in tqdm(loader):
+        answers = beam_search_500mt(
+            model=model, reac=reac, prod=prod, device=device, toker=remap,
+            begin_token='<CLS>',  max_len=args.max_len, beams=args.beam_size,
+            total_heads=args.heads, local_heads=args.local_heads,
+            end_token='<END>', pad_token='<PAD>'
+        )
+        for idx, rxn in enumerate(raw_info):
+            key = canonical_rxn(rxn)
+            if key not in rxn2gt:
+                rxn2gt[key] = []
+            rxn2gt[key].append(labels[idx])
+            prediction_results.append({
+                'query': rxn, 'query_key': key,
+                'prob_answer': answers[idx],
+            })
 
-        if key not in rxn2gt:
-            rxn2gt[key] = []
-        rxn2gt[key].append(gt)
-
-        if args.mode == 'prediction':
-            results = beam_search_500_mt_pred(
-                model=model, remap=remap, mapped_rxn=query_rxn,
-                device=device, max_len=args.max_len, size=args.beam_size,
-                heads=args.heads, local_glocal=args.local_global,
-                begin_token='<CLS>', end_token='<END>'
-            )
-        else:
-            results = beam_search_500_mt_gen(
-                model=model, tokenizer=remap, mapped_rxn=query_rxn,
-                device=device, max_len=args.max_len, size=args.beam_size,
-                heads=args.heads, local_glocal=args.local_global,
-                begin_token='<CLS>', end_token='<END>'
-            )
-
-        prediction_results.append({
-            'query': query_rxn,
-            'prob_answer': results,
-            'query_key': key
-        })
-
-        if len(prediction_results) % args.save_every == 0:
+        save_res += len(answers)
+        if save_res >= args.save_every:
             outx = {
                 'rxn2gt': rxn2gt,
                 'answer': prediction_results,
                 'args': args.__dict__
             }
-
-            if args.mode == 'prediction':
-                outx['remap'] = remap
-                outx['idx2name'] = idx2name
-
             with open(out_file, 'w') as Fout:
                 json.dump(outx, Fout, indent=4)
+            save_res %= args.save_every
 
     with open(out_file, 'w') as Fout:
         outx = {
@@ -177,10 +167,5 @@ if __name__ == '__main__':
             'answer': prediction_results,
             'args': args.__dict__
         }
-
-        if args.mode == 'prediction':
-            outx['remap'] = remap
-            outx['idx2name'] = idx2name
-
         with open(out_file, 'w') as Fout:
             json.dump(outx, Fout, indent=4)
