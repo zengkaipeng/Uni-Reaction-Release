@@ -3,7 +3,8 @@ from .layers import DotMhAttn
 from .utils import graph2batch
 from .conditions import NumEmbeddingWithNan, NumEmbedding
 from utils.tensor_utils import (
-    generate_square_subsequent_mask, generate_topk_mask
+    generate_square_subsequent_mask, generate_topk_mask,
+    generate_local_global_mask
 )
 
 
@@ -278,18 +279,25 @@ class USPTO500MTModel(torch.nn.Module):
         return result
 
     def beam_search(
-        self, memory, res, padding_idx, end_idx, memory_padding=None,
-        beam=10, max_len=400, cross_mask=None,
+        self, reac_graph, prod_graph, res, padding_idx, end_idx,
+        beam=10, max_len=400, total_heads=None, local_heads=0,
         left_parenthesis_idx=-1, right_parenthesis_idx=-1
     ):
         def sq_ft(x):
             assert x.dim() >= 2, 'no enough dim to squeeze'
             return x.reshape((-1, *x.shape[2:]))
+        memory, memory_padding = self.encode(reac_graph, prod_graph)
         (bs, ml), device = memory.shape[:2], memory.device
         log_logits = torch.zeros(bs).to(device)
         belong = torch.arange(0, bs).to(device)
-        if memory_padding is None:
-            memory_padding = torch.zeros((bs, ml), dtype=bool).to(device)
+
+        if local_heads > 0:
+            unit_cross_mask = generate_local_global_mask(
+                reac_graph, prod_graph, 1, total_heads, local_heads
+            )
+            cross_mask_list = []
+        else:
+            cross_mask_list = unit_cross_mask = None
 
         if (
             (left_parenthesis_idx != -1 and right_parenthesis_idx == -1) or
@@ -323,6 +331,12 @@ class USPTO500MTModel(torch.nn.Module):
             memory, memory_padding = memory[alive], memory_padding[alive]
             n_close, res, rc_l = n_close[alive], res[alive], rc_l[alive]
             log_logits, belong = log_logits[alive], belong[alive]
+
+            if cross_mask_list is None:
+                cross_mask = None
+            else:
+                cross_mask_list.append(unit_cross_mask)
+                cross_mask = torch.cat(cross_mask_list, dim=1)
 
             diag_mask = generate_square_subsequent_mask(res.shape[1], device)
             rc_out = torch.log_softmax(self.decode_a_step(

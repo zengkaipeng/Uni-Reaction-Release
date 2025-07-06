@@ -369,29 +369,52 @@ class ReactionPredDataset(RAlignDatasetBase):
 def gen_fn(batch):
     reac = graph_col_fn([x[0] for x in batch])
     prod = graph_col_fn([x[1] for x in batch])
-    if len(batch[0]) == 3:
-        return reac, prod, [x[2] for x in batch]
-    else:
-        return reac, prod
+    return reac, prod, [x[2] for x in batch]
 
 
 def pred_fn(batch):
     reac = graph_col_fn([x[0] for x in batch])
     prod = graph_col_fn([x[1] for x in batch])
-    if len(batch[0]) == 3:
-        return reac, prod, torch.LongTensor([x[2] for x in batch])
-    else:
-        return reac, prod
+    return reac, prod, torch.LongTensor([x[2] for x in batch])
 
 
 class ReactionSeqInferenceDataset(RAlignDatasetBase):
-    def __init__(self, reactions, labels=None):
+    def __init__(self, reactions, labels=None, return_raw=True):
         super(ReactionSeqInferenceDataset, self).__init__(reactions)
         self.labels = labels
+        self.return_raw = return_raw
 
     def __getitem__(self, idx):
         reac_mol, prod_mol = self.get_aligned_graphs(idx)
-        if self.labels != None:
-            return reac_mol, prod_mol, self.labels[idx]
+        out_ans = [reac_mol, prod_mol]
+        if self.return_raw:
+            out_ans.append(self.reactions[idx])
+        if self.labels is not None:
+            out_ans.append(self.labels[idx])
+
+
+def gen_inf_fn(batch):
+    out_ans = [
+        graph_col_fn([x[0] for x in batch]),
+        graph_col_fn([x[1] for x in batch])
+    ]
+    if len(batch[0]) > 2:
+        out_ans.append([x[2] for x in batch])
+    if len(batch[0]) > 3:
+        out_ans.append([x[3] for x in batch])
+
+
+def pred_inf_fn(batch):
+    out_ans = [
+        graph_col_fn([x[0] for x in batch]),
+        graph_col_fn([x[1] for x in batch])
+    ]
+    if len(batch[0]) > 2:
+        if isinstance(batch[0][2], str):
+            out_ans.append([x[2] for x in batch])
         else:
-            return reac_mol, prod_mol
+            out_ans.append(torch.LongTensor([x[2] for x in batch]))
+    if len(batch[0]) > 3:
+        out_ans.append(torch.LongTensor([x[3] for x in batch]))
+
+    return out_ans
