@@ -29,10 +29,6 @@ def make_dir(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parser for prediction model')
     parser.add_argument(
-        '--data_path', '-d', required=True, type=str,
-        help='the path of file containing the dataset'
-    )
-    parser.add_argument(
         '--part', '-p', default='test', type=str,
         help='the part of dataset to be used for prediction'
     )
@@ -42,12 +38,12 @@ if __name__ == '__main__':
     )
 
     cmd_args = parser.parse_args()
-    data_path = cmd_args.data_path
     log_dir = cmd_args.log_dir
     with open(os.path.join(log_dir, 'log.json'), 'r') as fin:
         log_info = json.load(fin)
 
     args = argparse.Namespace(**log_info['args'])    
+    data_path = args.data_path
 
     if torch.cuda.is_available() and args.device >= 0:
         device = torch.device(f'cuda:{args.device}')
@@ -122,4 +118,4 @@ if __name__ == '__main__':
         'true_yield': true_yield.flatten()
     })
     data_postfix = data_path.replace('/', '_').replace('\\', '_')
-    df.to_csv(os.path.join(log_dir, f'pred_yield_on_{data_postfix}.csv'), index=False)
+    df.to_csv(os.path.join(log_dir, f'pred_{cmd_args.part}.csv'), index=False)
