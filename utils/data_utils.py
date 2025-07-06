@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from .Dataset import (
     CNYieldDataset, AzYieldDataset, SMYieldDataset, SelDataset,
-    ReactionPredDataset, ReactionSeqInfereceDataset
+    ReactionPredDataset, ReactionSeqInferenceDataset
 )
 
 from .tokenlizer import Tokenizer, smi_tokenizer

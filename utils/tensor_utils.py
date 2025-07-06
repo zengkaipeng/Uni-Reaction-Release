@@ -48,7 +48,6 @@ def generate_tgt_mask(tgt, pad_idx, device='cpu'):
 
 
 def generate_local_global_mask(reac, prod, Qlen, total_heads, local_heads):
-    assert heads >= 2, 'heads too small for dividing'
     reac_rc = torch.zeros_like(reac.batch_mask)
     prod_rc = torch.zeros_like(prod.batch_mask)
     reac_rc[reac.batch_mask] = reac.is_rc | (~reac.is_prod)
