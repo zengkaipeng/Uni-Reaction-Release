@@ -2,15 +2,14 @@ import argparse
 import json
 import torch
 import pickle
-import time
 import os
 
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from utils.chemistry_parse import canonical_rxn
 from utils.inference import beam_search_condition
-from utils.data_utils import load_uspto_condition_inference
-from utils. Dataset import pred_inf_fn
+from utils.data_utils import load_uspto_condition_inference, count_parameters
+from utils.Dataset import pred_inf_fn
 
 from model import (
     RAlignEncoder, DualGATEncoder, TranDec,
@@ -69,8 +68,8 @@ if __name__ == '__main__':
         help='the step size for saving results'
     )
     parser.add_argument(
-        '--output_dir', type=str, required=True,
-        help='the path for output results'
+        '--output_file', type=str, required=True,
+        help='the file path to store results'
     )
     parser.add_argument(
         '--beam_size', type=int, default=10,
@@ -137,9 +136,9 @@ if __name__ == '__main__':
     model_weight = torch.load(args.checkpoint, map_location=device)
     model.load_state_dict(model_weight)
     model = model.eval()
+    num_params = count_parameters(model)
 
     prediction_results, rxn2gt, dis_res = [], {}, 0
-    out_file = os.path.join(args.output_dir, f'answer-{time.time()}.json')
 
     for reac, prod, raw_info, labels in tqdm(loader):
         answers = beam_search_condition(
@@ -159,21 +158,23 @@ if __name__ == '__main__':
         dis_res += len(answers)
 
         if dis_res >= args.save_every:
-            with open(out_file, 'w') as Fout:
+            with open(args.output_file, 'w') as Fout:
                 json.dump({
                     'rxn2gt': rxn2gt,
                     'answer': prediction_results,
                     'remap': remap,
                     'idx2name': idx2name,
-                    'args': args.__dict__
+                    'args': args.__dict__,
+                    "num_parameters": num_params
                 }, Fout, indent=4)
             dis_res %= args.save_every
 
-    with open(out_file, 'w') as Fout:
+    with open(args.output_file, 'w') as Fout:
         json.dump({
             'rxn2gt': rxn2gt,
             'answer': prediction_results,
             'remap': remap,
             'idx2name': idx2name,
-            'args': args.__dict__
+            'args': args.__dict__,
+            "num_parameters": num_params
         }, Fout, indent=4)
