@@ -1,6 +1,7 @@
 import torch
 import math
 
+
 class SparseEdgeUpdateLayer(torch.nn.Module):
     def __init__(
         self, edge_dim: int = 64, node_dim: int = 64,
@@ -62,7 +63,8 @@ class DotMhAttn(torch.nn.Module):
         if attn_mask is not None:
             if attn_mask.ndim == 4:
                 assert attn_mask.shape == (BS, Q_len, K_len, self.heads),\
-                    "The attn mask should be (BS, Query, Key, heads)"
+                    "The attn mask should be (BS, Query, Key, heads)" +\
+                    " but get {}".format(attn_mask.shape)
                 attn_w[torch.transpose(attn_mask, 1, 2)] = 1 - (1 << 32)
             else:
                 assert attn_mask.shape == (Q_len, K_len),\

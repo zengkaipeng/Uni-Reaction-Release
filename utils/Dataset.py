@@ -391,6 +391,7 @@ class ReactionSeqInferenceDataset(RAlignDatasetBase):
             out_ans.append(self.reactions[idx])
         if self.labels is not None:
             out_ans.append(self.labels[idx])
+        return out_ans
 
 
 def gen_inf_fn(batch):
@@ -402,6 +403,7 @@ def gen_inf_fn(batch):
         out_ans.append([x[2] for x in batch])
     if len(batch[0]) > 3:
         out_ans.append([x[3] for x in batch])
+    return out_ans
 
 
 def pred_inf_fn(batch):
@@ -416,5 +418,4 @@ def pred_inf_fn(batch):
             out_ans.append(torch.LongTensor([x[2] for x in batch]))
     if len(batch[0]) > 3:
         out_ans.append(torch.LongTensor([x[3] for x in batch]))
-
     return out_ans

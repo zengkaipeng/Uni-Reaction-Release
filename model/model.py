@@ -174,20 +174,13 @@ class USPTOConditionModel(torch.nn.Module):
         log_logits = torch.zeros(bs).to(device)
         belong = torch.arange(0, bs).to(device)
 
-        if local_heads > 0:
-            unit_cross_mask = generate_local_global_mask(
-                reac_graph, prod_graph, 1, total_heads, local_heads
-            )
-            cross_mask_list = []
-        else:
-            cross_mask_list = unit_cross_mask = None
+        unit_cross_mask = generate_local_global_mask(
+            reac_graph, prod_graph, 1, total_heads, local_heads
+        ) if local_heads > 0 else None
 
         for i in range(5):
-            if cross_mask_list is None:
-                cross_mask = None
-            else:
-                cross_mask_list.append(unit_cross_mask)
-                cross_mask = torch.cat(cross_mask_list, dim=1)
+            cross_mask = None if unit_cross_mask is None else\
+                unit_cross_mask[belong].repeat(1, i + 1, 1, 1)
 
             mem_cand, mem_pad_cand, seq_cand = [], [], []
             log_cand, bel_cand = [], []
@@ -303,13 +296,9 @@ class USPTO500MTModel(torch.nn.Module):
         log_logits = torch.zeros(bs).to(device)
         belong = torch.arange(0, bs).to(device)
 
-        if local_heads > 0:
-            unit_cross_mask = generate_local_global_mask(
-                reac_graph, prod_graph, 1, total_heads, local_heads
-            )
-            cross_mask_list = []
-        else:
-            cross_mask_list = unit_cross_mask = None
+        unit_cross_mask = generate_local_global_mask(
+            reac_graph, prod_graph, 1, total_heads, local_heads
+        ) if local_heads > 0 else None
 
         if (
             (left_parenthesis_idx != -1 and right_parenthesis_idx == -1) or
@@ -334,21 +323,17 @@ class USPTO500MTModel(torch.nn.Module):
                 mem_cand = [memory[dead]]
                 mem_pad_cand = [memory_padding[dead]]
                 close_cand = [n_close[dead]]
-                rc_cand = [rc_l[dead]]
                 alive_cand = [torch.zeros(n_dead, dtype=bool).to(device)]
             else:
                 seq_cand, bel_cand, log_cand, alive_cand = [], [], [], []
-                close_cand, mem_cand, mem_pad_cand, rc_cand = [], [], [], []
+                close_cand, mem_cand, mem_pad_cand = [], [], []
 
             memory, memory_padding = memory[alive], memory_padding[alive]
-            n_close, res, rc_l = n_close[alive], res[alive], rc_l[alive]
+            n_close, res = n_close[alive], res[alive]
             log_logits, belong = log_logits[alive], belong[alive]
 
-            if cross_mask_list is None:
-                cross_mask = None
-            else:
-                cross_mask_list.append(unit_cross_mask)
-                cross_mask = torch.cat(cross_mask_list, dim=1)
+            cross_mask = None if unit_cross_mask is None else\
+                unit_cross_mask[belong].repeat(1, i + 1, 1, 1)
 
             diag_mask = generate_square_subsequent_mask(res.shape[1], device)
             rc_out = torch.log_softmax(self.decode_a_step(
@@ -368,8 +353,6 @@ class USPTO500MTModel(torch.nn.Module):
             # [alive_n, dup]
             n_close = n_close[:, None].repeat(1, dup)
             # [alive_n, dup]
-            rc_l = rc_l[:, None].repeat(1, dup, 1)
-            # [alive_n, dup, ml]
 
             top_res = torch.topk(rc_out, k=dup, dim=-1, largest=True)
             log_logits = log_logits[:, None] + top_res.values
@@ -379,7 +362,6 @@ class USPTO500MTModel(torch.nn.Module):
             is_sec = (top_res.indices == right_parenthesis_idx).long()
             n_close = n_close + is_fst - is_sec
 
-            rc_cand.append(sq_ft(rc_l))
             mem_cand.append(sq_ft(memory))
             mem_pad_cand.append(sq_ft(memory_padding))
             seq_cand.append(sq_ft(res))
@@ -395,8 +377,6 @@ class USPTO500MTModel(torch.nn.Module):
             belong = torch.cat(bel_cand, dim=0)
             alive = torch.cat(alive_cand, dim=0)
             n_close = torch.cat(close_cand, dim=0)
-            rc_l = torch.cat(rc_cand, dim=0)
-
             illegal = (n_close < 0) | ((~alive) & (n_close != 0))
             log_logits[illegal] = float('-inf')
 
@@ -408,7 +388,6 @@ class USPTO500MTModel(torch.nn.Module):
             belong = belong[sort_out.indices]
             alive = alive[sort_out.indices]
             n_close = n_close[sort_out.indices]
-            rc_l = rc_l[sort_out.indices]
 
             topk_mask = generate_topk_mask(belong, bs, beam)
             log_logits = log_logits[topk_mask]
@@ -416,7 +395,6 @@ class USPTO500MTModel(torch.nn.Module):
             belong = belong[topk_mask]
             memory = memory[topk_mask]
             memory_padding = memory_padding[topk_mask]
-            rc_l = rc_l[topk_mask]
             n_close = n_close[topk_mask]
             alive = alive[topk_mask]
 

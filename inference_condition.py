@@ -24,6 +24,13 @@ def permute_five(a, b, c, d, e):
     ]
 
 
+def ensure_folder_exists(file_path):
+    absolute_path = os.path.abspath(file_path)
+    folder_path = os.path.dirname(absolute_path)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -95,8 +102,7 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+    ensure_folder_exists(args.output_file)
 
     with open(args.token_ckpt, 'rb') as Fin:
         remap = pickle.load(Fin)
@@ -113,13 +119,13 @@ if __name__ == '__main__':
     if args.remove_align:
         encoder = DualGATEncoder(
             emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
-            edge_dim=args.dim, dropout=args.dropout,
+            edge_dim=args.dim, dropout=0,
             negative_slope=args.negative_slope, update_last_edge=False
         )
     else:
         encoder = RAlignEncoder(
             emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
-            edge_dim=args.dim, dropout=args.dropout,
+            edge_dim=args.dim, dropout=0,
             negative_slope=args.negative_slope, update_last_edge=False
         )
     decoder = TranDec(
@@ -128,9 +134,9 @@ if __name__ == '__main__':
     )
     pos_env = PositionalEncoding(args.dim, 0, maxlen=50)
 
-    model = PredictModel(
-        encoder=encoder, decoder=decoder, pos_enc=pos_env,
-        num_embs=len(remap), dim=args.dim, dropout=0
+    model = USPTOConditionModel(
+        encoder=encoder, decoder=decoder, pe=pos_env,
+        n_words=len(remap), dim=args.dim
     ).to(device)
 
     model_weight = torch.load(args.checkpoint, map_location=device)
