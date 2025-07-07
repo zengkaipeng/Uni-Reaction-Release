@@ -1,0 +1,179 @@
+import argparse
+import json
+import torch
+import pickle
+import time
+import os
+
+from tqdm import tqdm
+from torch.utils.data import DataLoader
+from utils.chemistry_parse import canonical_rxn
+from utils.inference import beam_search_condition
+from utils.data_utils import load_uspto_condition_inference
+from utils. Dataset import pred_inf_fn
+
+from model import (
+    RAlignEncoder, DualGATEncoder, TranDec,
+    USPTOConditionModel, PositionalEncoding
+)
+
+
+def permute_five(a, b, c, d, e):
+    return [
+        (a, b, c, d, e), (a, b, c, e, d),
+        (a, c, b, d, e), (a, c, b, e, d)
+    ]
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--data_path', required=True, type=str,
+        help='the path of file containing the dataset'
+    )
+    parser.add_argument(
+        '--dim', type=int, default=512,
+        help='the number of dim for model'
+    )
+    parser.add_argument(
+        '--heads', type=int, default=8,
+        help='the number of heads for model'
+    )
+    parser.add_argument(
+        '--n_layer', type=int, default=8,
+        help='the number of layers of the model'
+    )
+    parser.add_argument(
+        '--negative_slope', type=float, default=0.2,
+        help='the negative slope of model'
+    )
+    parser.add_argument(
+        '--local_heads', type=int, default=0,
+        help='the number of local heads in attention'
+    )
+
+    parser.add_argument(
+        '--device', type=int, default=0,
+        help='the device id for traiing, negative for cpu'
+    )
+    parser.add_argument(
+        '--checkpoint', required=True, type=str,
+        help='the path for checkpoint'
+    )
+    parser.add_argument(
+        '--token_ckpt', required=True, type=str,
+        help='the path for tokenizer remapper'
+    )
+    parser.add_argument(
+        '--save_every', type=int, default=1000,
+        help='the step size for saving results'
+    )
+    parser.add_argument(
+        '--output_dir', type=str, required=True,
+        help='the path for output results'
+    )
+    parser.add_argument(
+        '--beam_size', type=int, default=10,
+        help='the size for beam searching'
+    )
+    parser.add_argument(
+        '--remove_align', action='store_true',
+        help='remove the alignment layer in encoder'
+    )
+    parser.add_argument(
+        '--batch_size', type=int, default=128,
+        help='the batch size for inference'
+    )
+    parser.add_argument(
+        '--num_workers', type=int, default=4,
+        help='the num_workers in dataloader'
+    )
+
+    args = parser.parse_args()
+
+    if torch.cuda.is_available() and args.device >= 0:
+        device = torch.device(f'cuda:{args.device}')
+    else:
+        device = torch.device('cpu')
+
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    with open(args.token_ckpt, 'rb') as Fin:
+        remap = pickle.load(Fin)
+    idx2name = {v: k for k, v in remap.items()}
+    begin_idx = remap['<CLS>']
+
+    testset = load_uspto_condition_inference(args.data_path, remap)
+
+    loader = DataLoader(
+        testset, batch_size=args.batch_size, shuffle=False,
+        collate_fn=pred_inf_fn, num_workers=args.num_workers
+    )
+
+    if args.remove_align:
+        encoder = DualGATEncoder(
+            emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
+            edge_dim=args.dim, dropout=args.dropout,
+            negative_slope=args.negative_slope, update_last_edge=False
+        )
+    else:
+        encoder = RAlignEncoder(
+            emb_dim=args.dim, n_layer=args.n_layer, heads=args.heads,
+            edge_dim=args.dim, dropout=args.dropout,
+            negative_slope=args.negative_slope, update_last_edge=False
+        )
+    decoder = TranDec(
+        n_layers=args.n_layer, emb_dim=args.dim, heads=args.heads,
+        dropout=0, dim_ff=args.dim << 1
+    )
+    pos_env = PositionalEncoding(args.dim, 0, maxlen=50)
+
+    model = PredictModel(
+        encoder=encoder, decoder=decoder, pos_enc=pos_env,
+        num_embs=len(remap), dim=args.dim, dropout=0
+    ).to(device)
+
+    model_weight = torch.load(args.checkpoint, map_location=device)
+    model.load_state_dict(model_weight)
+    model = model.eval()
+
+    prediction_results, rxn2gt, dis_res = [], {}, 0
+    out_file = os.path.join(args.output_dir, f'answer-{time.time()}.json')
+
+    for reac, prod, raw_info, labels in tqdm(loader):
+        answers = beam_search_condition(
+            model=model, reac=reac, prod=prod, device=device,
+            begin_idx=begin_idx, beams=args.beams,
+            total_heads=args.heads, local_heads=args.local_heads
+        )
+        for idx, rxn in enumerate(raw_info):
+            key = canonical_rxn(rxn)
+            if key not in rxn2gt:
+                rxn2gt[key] = []
+            rxn2gt[key].extend(permute_five(*labels[idx]))
+            prediction_results.append({
+                'query': rxn, 'query_key': key,
+                'prob_answer': answers[idx]
+            })
+        dis_res += len(answers)
+
+        if dis_res >= args.save_every:
+            with open(out_file, 'w') as Fout:
+                json.dump({
+                    'rxn2gt': rxn2gt,
+                    'answer': prediction_results,
+                    'remap': remap,
+                    'idx2name': idx2name,
+                    'args': args.__dict__
+                }, Fout, indent=4)
+            dis_res %= args.save_every
+
+    with open(out_file, 'w') as Fout:
+        json.dump({
+            'rxn2gt': rxn2gt,
+            'answer': prediction_results,
+            'remap': remap,
+            'idx2name': idx2name,
+            'args': args.__dict__
+        }, Fout, indent=4)

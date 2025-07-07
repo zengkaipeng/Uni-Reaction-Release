@@ -311,3 +311,24 @@ def load_uspto_condition(data_path, mapper_path='', verbose=True, mapper=None):
     )
 
     return train_set, val_set, test_set, mapper
+
+
+def load_uspto_condition_inference(data_path, mapper):
+    raw_info = pandas.read_csv(data_path)
+    raw_info = raw_info.fillna('')
+    raw_info = raw_info.to_dict('records')
+    reac, all_labels = [], []
+
+    for i, element in enumerate(tqdm(raw_info)):
+        if element['dataset'] != 'test':
+            continue
+        reac.append(element['mapped_rxn'])
+        labels = [
+            mapper[element['catalyst1']],
+            mapper[element['solvent1']], mapper[element['solvent2']],
+            mapper[element['reagent1']], mapper[element['reagent2']]
+        ]
+        all_labels.append(labels)
+
+    dataset = ReactionSeqInferenceDataset(reac, all_labels, True)
+    return dataset

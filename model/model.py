@@ -162,27 +162,39 @@ class USPTOConditionModel(torch.nn.Module):
         return result
 
     def beam_search(
-        self, memory, begin, memory_key_padding_mask=None,
-        cross_mask=None, beam_size=10
+        self, reac_graph, prod_graph, res, total_heads=None,
+        local_heads=0, beam_size=10
     ):
         def sq_ft(x):
             assert x.dim() >= 2, 'no enough dim to squeeze'
             return x.reshape((-1, *x.shape[2:]))
-        (bs, ml), device = memory.shape[:2], memory.device
-        if memory_padding is None:
-            memory_padding = torch.zeros((bs, ml), dtype=bool).to(device)
 
-        res = torch.LongTensor([[begin]] * bs).to(device)
-        belong = torch.arange(0, bs).to(device)
+        memory, memory_padding = self.encode(reac_graph, prod_graph)
+        (bs, ml), device = memory.shape[:2], memory.device
         log_logits = torch.zeros(bs).to(device)
+        belong = torch.arange(0, bs).to(device)
+
+        if local_heads > 0:
+            unit_cross_mask = generate_local_global_mask(
+                reac_graph, prod_graph, 1, total_heads, local_heads
+            )
+            cross_mask_list = []
+        else:
+            cross_mask_list = unit_cross_mask = None
 
         for i in range(5):
+            if cross_mask_list is None:
+                cross_mask = None
+            else:
+                cross_mask_list.append(unit_cross_mask)
+                cross_mask = torch.cat(cross_mask_list, dim=1)
+
             mem_cand, mem_pad_cand, seq_cand = [], [], []
             log_cand, bel_cand = [], []
             diag_mask = generate_square_subsequent_mask(i + 1, device)
             rc_out = torch.log_softmax(self.decode_a_step(
                 memory=memory,  cross_mask=cross_mask, tgt_mask=diag_mask,
-                seq=res, memory_key_padding_mask=memory_key_padding_mask
+                seq=res, memory_key_padding_mask=memory_padding
             )[:, -1], dim=-1)
 
             dup = min(rc_out.shape[-1], beam_size)
