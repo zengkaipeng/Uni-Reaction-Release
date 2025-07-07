@@ -1,5 +1,3 @@
-import torch
-from utils import canonical_rxn
 import argparse
 import json
 import numpy as np

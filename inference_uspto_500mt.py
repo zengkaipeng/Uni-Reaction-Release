@@ -8,7 +8,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from utils.chemistry_parse import canonical_rxn
 from utils.inference import beam_search_500mt
-from utils.Dataset import gen_inf_fn
+from utils.Dataset import seq_inf_fn
 from utils.data_utils import load_uspto_mt500_inference, count_parameters
 
 from model import (
@@ -134,7 +134,7 @@ if __name__ == '__main__':
     test_set = load_uspto_mt500_inference(args.data_path, remap)
     loader = DataLoader(
         test_set, batch_size=args.batch_size, shuffle=False,
-        num_workers=args.num_workers, collate_fn=gen_inf_fn
+        num_workers=args.num_workers, collate_fn=seq_inf_fn
     )
 
     prediction_results, save_res, rxn2gt = [], 0, {}

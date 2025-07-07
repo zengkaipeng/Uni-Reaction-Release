@@ -39,7 +39,7 @@ def beam_search_condition(
 ):
     model, reac, prod = model.eval(), reac.to(device), prod.to(device)
     bs = reac.batch_mask.shape[0]
-    start_tokens = torch.LongTensor([[begin_idx]] * bs)
+    start_tokens = torch.LongTensor([[begin_idx]] * bs).to(device)
     with torch.no_grad():
         sm_seq, sm_logs, sm_belong = model.beam_search(
             reac_graph=reac, prod_graph=prod, res=start_tokens,
@@ -49,6 +49,6 @@ def beam_search_condition(
     final_answer = [[] for _ in range(bs)]
     for idx, p in enumerate(sm_seq):
         xbelong = sm_belong[idx].item()
-        final_answer[xbelong].append((sm_logs[idx].item(), smiles))
+        final_answer[xbelong].append((sm_logs[idx].item(), p[1:].tolist()))
 
     return final_answer

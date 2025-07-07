@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from utils.chemistry_parse import canonical_rxn
 from utils.inference import beam_search_condition
 from utils.data_utils import load_uspto_condition_inference, count_parameters
-from utils.Dataset import pred_inf_fn
+from utils.Dataset import seq_inf_fn
 
 from model import (
     RAlignEncoder, DualGATEncoder, TranDec,
@@ -94,6 +94,10 @@ if __name__ == '__main__':
         '--num_workers', type=int, default=4,
         help='the num_workers in dataloader'
     )
+    parser.add_argument(
+        '--decoder_layer', type=int, default=-1,
+        help='the number of decoder layers'
+    )
 
     args = parser.parse_args()
 
@@ -113,7 +117,7 @@ if __name__ == '__main__':
 
     loader = DataLoader(
         testset, batch_size=args.batch_size, shuffle=False,
-        collate_fn=pred_inf_fn, num_workers=args.num_workers
+        collate_fn=seq_inf_fn, num_workers=args.num_workers
     )
 
     if args.remove_align:
@@ -128,8 +132,9 @@ if __name__ == '__main__':
             edge_dim=args.dim, dropout=0,
             negative_slope=args.negative_slope, update_last_edge=False
         )
+    dec_layer = args.n_layer if args.decoder_layer <= 0 else args.decoder_layer
     decoder = TranDec(
-        n_layers=args.n_layer, emb_dim=args.dim, heads=args.heads,
+        n_layers=dec_layer, emb_dim=args.dim, heads=args.heads,
         dropout=0, dim_ff=args.dim << 1
     )
     pos_env = PositionalEncoding(args.dim, 0, maxlen=50)
@@ -149,7 +154,7 @@ if __name__ == '__main__':
     for reac, prod, raw_info, labels in tqdm(loader):
         answers = beam_search_condition(
             model=model, reac=reac, prod=prod, device=device,
-            begin_idx=begin_idx, beams=args.beams,
+            begin_idx=begin_idx, beams=args.beam_size,
             total_heads=args.heads, local_heads=args.local_heads
         )
         for idx, rxn in enumerate(raw_info):

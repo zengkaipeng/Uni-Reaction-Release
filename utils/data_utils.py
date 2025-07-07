@@ -255,7 +255,7 @@ def load_uspto_mt500_inference(data_path, remap):
         setx = json.load(F)
         for lin in setx:
             rxns.append(lin['new_mapped_rxn'])
-            labels.append(lin['reagent_list'])
+            labels.append('.'.join(lin['reagent_list']))
 
     dataset = ReactionSeqInferenceDataset(rxns, labels, True)
     return dataset
