@@ -7,7 +7,7 @@ import os
 import os.path as osp
 import json
 import re
-
+from utils import validate
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=' Args of the script: collect_iid')
     parser.add_argument('--input', '-i', type=str, required=True, help='Input log dir')
@@ -15,7 +15,7 @@ if __name__ == '__main__':
     parser.add_argument('--iid_marker', '-iid', type=str, default='FullCV_.*', help='Marker for IID datasets')
     args = parser.parse_args()
     input_file = args.input
-    out_dir = osp.join(input_file, 'iid')
+    out_dir = osp.join(input_file, 'result_iid')
     if not osp.exists(out_dir):
         os.makedirs(out_dir)
     # os walking
@@ -27,28 +27,30 @@ if __name__ == '__main__':
     iid_marker = args.iid_marker
     all_model_result = {}
     for root, dirs, files in os.walk(input_file):
-        if len(dirs) == 0 and len(files) == 3:
-            with open(osp.join(root, 'log.json'), 'r') as f:
-                log = json.load(f)
-            args = log['args']
-            # args.update({'log_dir': root})
-            exp_dataset = args['data_path'].split('/')[-1]
-            if not re.match(iid_marker, exp_dataset):
-                continue
-            model_tag = ';'.join([f"{arg}={val}" for arg, val in args.items() if arg not in exclude_args])
-            if model_tag not in all_model_result:
-                all_model_result[model_tag] = {}
-                all_model_result[model_tag]['args'] = args
-                all_model_result[model_tag]['test_metric'] = {}
-                all_model_result[model_tag]['best_ep'] = {}
+        if 'log.json' not in files:
+            continue
+        log = validate(root)
+        if log is None:
+            continue
+        args = log['args']
+        # args.update({'log_dir': root})
+        exp_dataset = args['data_path'].split('/')[-1]
+        if not re.match(iid_marker, exp_dataset):
+            continue
+        model_tag = ';'.join([f"{arg}={val}" for arg, val in args.items() if arg not in exclude_args])
+        if model_tag not in all_model_result:
+            all_model_result[model_tag] = {}
+            all_model_result[model_tag]['args'] = args
+            all_model_result[model_tag]['test_metric'] = {}
+            all_model_result[model_tag]['best_ep'] = {}
 
-            # find best ep
-            val_metric = log['valid_metric']
-            best_ep = np.argmax([x[best_by] for x in val_metric])
-            best_test_result = log['test_metric'][best_ep]
-            all_model_result[model_tag]['test_metric'][exp_dataset] = best_test_result
-            all_model_result[model_tag]['args'].update({f'log_{exp_dataset}' : root})
-            all_model_result[model_tag]['best_ep'][exp_dataset] = best_ep
+        # find best ep
+        val_metric = log['valid_metric']
+        best_ep = np.argmax([x[best_by] for x in val_metric])
+        best_test_result = log['test_metric'][best_ep]
+        all_model_result[model_tag]['test_metric'][exp_dataset] = best_test_result
+        all_model_result[model_tag]['args'].update({f'log_{exp_dataset}' : root})
+        all_model_result[model_tag]['best_ep'][exp_dataset] = best_ep
 
     
     if len(all_model_result) == 0:
@@ -105,7 +107,11 @@ if __name__ == '__main__':
             record[m].append(item_cp)
     for m in record.keys():
         df = pd.DataFrame(record[m])
+        all_cols = list(df.columns)
+        move_back_cols = [col for col in all_cols if re.match(iid_marker, col)] + ['mean', 'std']
+        reorder_cols = [col for col in all_cols if col not in move_back_cols] + move_back_cols
+        df = df[reorder_cols]
         # sort by tag
-        df.sort_values(by=['mean', 'model_tag'], ascending=False, inplace=True)
+        df.sort_values(by=['mean'], ascending=False, inplace=True)
         df.to_csv(osp.join(out_dir, f"{m}_best_by_{best_by}.csv"), index=False)
     print(f"Results collected and saved in {out_dir}.")

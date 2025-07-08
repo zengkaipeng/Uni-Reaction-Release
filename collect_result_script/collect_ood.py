@@ -16,14 +16,18 @@ if __name__ == '__main__':
     args = parser.parse_args()
     input_file = args.input
     ood_marker = args.ood_marker
+    out_dir = osp.join(input_file, 'result_ood')
+    if not osp.exists(out_dir):
+        os.makedirs(out_dir)
     # os walking
-    specific_args = ['dim', 'heads', 'n_layer', 'dropout', 'lr', 'condition_config', 'condition_both']
+    specific_args = ['dim', 'heads', 'n_layer', 'dropout', 'lr', 'condition_both']
     # all_exps = ['FullCV_01', 'FullCV_02', 'FullCV_03', 'FullCV_04', 'FullCV_05',
     #             'FullCV_06', 'FullCV_07', 'FullCV_08', 'FullCV_09', 'FullCV_10']
     best_by = args.best_by
     all_task_result = {}
     for root, dirs, files in os.walk(input_file):
-        if len(dirs) == 0 and len(files) == 3:
+            if 'log.json' not in files:
+                continue
             with open(osp.join(root, 'log.json'), 'r') as f:
                 log = json.load(f)
             args = log['args']
@@ -86,7 +90,10 @@ if __name__ == '__main__':
             for m in record.keys():
                 item_cp = item.copy()
                 this_exp_all_metric = []
-                for dataset, metric in val['test_metric'].items():
+                all_dataset = list(val['test_metric'].keys())
+                all_dataset.sort()  # Sort datasets for consistent order
+                for dataset in all_dataset:
+                    metric = val['test_metric'][dataset]
                     if m == 'RMSE':
                         this_exp_metrix = np.sqrt(metric['MSE'])
                     else:
@@ -102,6 +109,8 @@ if __name__ == '__main__':
     
     for m, df_dict in all_df.items():
         # save as excel, task name as sheet name
-        with pd.ExcelWriter(os.path.join(input_file, f'collect_ood_{m}_best_by_{best_by}.xlsx')) as writer:
+        with pd.ExcelWriter(os.path.join(out_dir, f'{m}_best_by_{best_by}.xlsx')) as writer:
             for task, df in df_dict.items():
+                df.sort_values(by=['model_tag'], ascending=True, inplace=True)
                 df.to_excel(writer, sheet_name=task, index=False)
+    print(f"Results saved to {out_dir} with best_by metric: {best_by}")

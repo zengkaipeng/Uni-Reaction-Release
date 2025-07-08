@@ -25,7 +25,7 @@ def get_curve_tag(args, cols):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=' Args of the script: draw_log')
     parser.add_argument('--input', '-i', type=str, required=True, help='Input log dir')
-    parser.add_argument('--part', '-p', type=str, default='', help='use result of pred_{part}.csv')
+    parser.add_argument('--part', '-p', type=str, default='test', help='use result of pred_{part}.csv')
     args = parser.parse_args()
     input_dir = args.input
 
