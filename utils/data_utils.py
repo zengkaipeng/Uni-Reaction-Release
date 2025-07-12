@@ -14,23 +14,24 @@ from .Dataset import (
 from .tokenlizer import Tokenizer, smi_tokenizer
 
 
-def load_sel(data_path, condition_type='pretrain'):
-    train_set = load_sel_one(data_path, 'train', condition_type)
-    val_set = load_sel_one(data_path, 'val', condition_type)
-    test_set = load_sel_one(data_path, 'test', condition_type)
+def load_sel(data_path, condition_type='pretrain', has_reag=True):
+    train_set = load_sel_one(data_path, 'train', condition_type, has_reag)
+    val_set = load_sel_one(data_path, 'val', condition_type, has_reag)
+    test_set = load_sel_one(data_path, 'test', condition_type, has_reag)
     return train_set, val_set, test_set
 
 
-def load_sel_one(data_path, part, condition_type='pretrain'):
+def load_sel_one(data_path, part, condition_type='pretrain', has_reag=True):
     train_x = pandas.read_csv(os.path.join(data_path, f'{part}.csv'))
-    rxn, out, ligand, base, additive, catalyst = [[] for _ in range(6)]
+    rxn, out, catalyst = [[] for _ in range(3)]
     for i, x in train_x.iterrows():
         rxn.append(x['mapped_rxn'])
         out.append(x['Output'])
-        catalyst.append(x['Catalyst'])
+        if has_reag:
+            catalyst.append(x['Catalyst'])
 
     return SelDataset(
-        reactions=rxn, catalyst=catalyst, labels=out,
+        reactions=rxn, catalyst=catalyst if len(catalyst) else None, labels=out,
         condition_type=condition_type
     )
 

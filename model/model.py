@@ -33,8 +33,11 @@ class RegressionModel(torch.nn.Module):
         )
         self.xln = torch.nn.LayerNorm(dim)
 
-    def forward(self, reac_graph, prod_graph, conditions, cross_mask=None):
-        condition_dict = self.condition_encoder(conditions)
+    def forward(self, reac_graph, prod_graph, conditions=None, cross_mask=None):
+        if conditions is not None and self.condition_encoder is not None:
+            condition_dict = self.condition_encoder(conditions)
+        else:
+            condition_dict = {}
         x_reac, x_prod, _, _ = self.encoder(
             reac_graph=reac_graph, reac_batched_condition=condition_dict,
             prod_graph=prod_graph, prod_batched_condition=condition_dict

@@ -10,3 +10,5 @@ log_az*
 condition_config/*
 data
 run_logs
+draw_results
+draw_script
