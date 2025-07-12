@@ -194,8 +194,6 @@ def train_regression(
     loader, model, optimizer, device, total_heads=None,
     local_heads=0, warmup=False
 ):
-    if local_global and heads is None:
-        raise ValueError("require num heads for local global mask")
     model, los_cur = model.train(), []
     if warmup:
         warmup_iters = len(loader) - 1
@@ -264,8 +262,6 @@ def train_gen(
     loader, model, optimizer, device, pad_idx, toker,
     total_heads=None, local_heads=0, warmup=False,
 ):
-    if local_global and heads is None:
-        raise ValueError("require num heads for local global mask")
     model, los_cur = model.train(), []
     if warmup:
         warmup_iters = len(loader) - 1

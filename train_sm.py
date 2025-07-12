@@ -3,12 +3,13 @@ import os
 import time
 import argparse
 import json
+from functools import partial
 
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 
 from utils.data_utils import load_sm_yield, fix_seed, count_parameters
-from utils.training import train_mol_yield, eval_mol_yield
+from utils.training import train_mol_yield, eval_mol_yield, train_regression, eval_regression
 from utils.Dataset import cn_colfn
 
 from model import CNYieldModel, RAlignEncoder, build_sm_condition_encoder
@@ -100,8 +101,12 @@ if __name__ == '__main__':
         help='the add condition to both reactant and product'
     )
     parser.add_argument(
-        '--loss', choices=['mse', 'kl'], default='kl',
+        '--loss', choices=['mse', 'kl'], default='mse',
         help='the loss type for training'
+    )
+    parser.add_argument(
+        '--local_heads', type=int, default=0,
+        help='the number of local heads for training, 0 for no local heads'
     )
     args = parser.parse_args()
     print(args)
@@ -175,7 +180,7 @@ if __name__ == '__main__':
 
     total_params, trainable_params = count_parameters(model)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
     lr_sher = ExponentialLR(optimizer, gamma=args.lrgamma)
 
     log_info = {
@@ -189,17 +194,25 @@ if __name__ == '__main__':
 
     best_pref, best_ep, best_mse, best_ep2 = [None] * 4
 
+    if args.loss == 'mse':
+        train_func = train_regression
+        eval_func = eval_regression
+    else:
+        train_func = partial(train_mol_yield, loss_fun=args.loss)
+        eval_func = eval_mol_yield
+
     for ep in range(args.epoch):
         print(f'[INFO] training epoch {ep}')
-        loss = train_mol_yield(
-            train_loader, model, optimizer, device, heads=args.heads,
-            warmup=(ep < args.warmup), local_global=True, loss_fun=args.loss
+        loss = train_func(
+            train_loader, model, optimizer, device,
+            total_heads=args.heads, local_heads=args.local_heads,
+            warmup=(ep < args.warmup)
         )
-        val_results = eval_mol_yield(
-            val_loader, model, device, heads=args.heads, local_global=True
+        val_results = eval_func(
+            val_loader, model, device, total_heads=args.heads, local_heads=args.local_heads,
         )
-        test_results = eval_mol_yield(
-            test_loader, model, device, heads=args.heads, local_global=True
+        test_results = eval_func(
+            test_loader, model, device, total_heads=args.heads, local_heads=args.local_heads
         )
 
         print('[Train]:', loss)
@@ -232,3 +245,4 @@ if __name__ == '__main__':
     print(f'[INFO] best MSE epoch: {best_ep2}')
     print(f'[INFO] best MSE valid loss: {log_info["valid_metric"][best_ep2]}')
     print(f'[INFO] best MSE test loss: {log_info["test_metric"][best_ep2]}')
+

@@ -176,7 +176,7 @@ def load_sm_yield_one(data_path, part, condition_type='pretrain'):
     rxn, out, ligand, solvent, catalyst = [[] for _ in range(5)]
     for i, x in train_x.iterrows():
         rxn.append(x['mapped_rxn'])
-        out.append(x['y']*100)
+        out.append(x['y'])
         ligand.append(
             x['ligand_smiles'] if not pandas.isna(x['ligand_smiles']) else ''
         )
