@@ -107,6 +107,10 @@ if __name__ == '__main__':
         '--encoder_ckpt', type=str, default='',
         help='path for the weight of pretrain reaction encoder'
     )
+    parser.add_argument(
+        '--freeze_encoder', action='store_true',
+        help='freeze the pretrained encoder'
+    )
 
     args = parser.parse_args()
     print(args)
@@ -175,6 +179,10 @@ if __name__ == '__main__':
             if k.startswith('encoder.')
         }
         encoder.load_state_dict(weight, strict=False)
+        if args.freeze_encoder:
+            for k, v in encoder.named_parameters():
+                if k in weight:
+                    v.requires_grad = False
 
     condition_encoder = build_cn_condition_encoder(
         config=condition_config, dropout=args.dropout
