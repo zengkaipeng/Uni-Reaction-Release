@@ -3,16 +3,15 @@ import os
 import time
 import argparse
 import json
-from functools import partial
 
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 
-from utils.data_utils import load_sm_yield, fix_seed, count_parameters
-from utils.training import train_mol_yield, eval_mol_yield, train_regression, eval_regression
-from utils.Dataset import cn_colfn
+from utils.data_utils import load_sel, fix_seed, count_parameters
+from utils.training import train_regression, eval_regression
+from utils.Dataset import sel_wo_cat_colfn
 
-from model import CNYieldModel, RAlignEncoder, build_sm_condition_encoder
+from model import RegressionModel, RAlignEncoder, build_dm_condition_encoder
 
 
 def make_dir(args):
@@ -65,7 +64,7 @@ if __name__ == '__main__':
         help='the number for epochs for training'
     )
     parser.add_argument(
-        '--base_log', type=str, default='log/sm',
+        '--base_log', type=str, default='log_cn',
         help='the path for contraining log'
     )
     parser.add_argument(
@@ -93,21 +92,10 @@ if __name__ == '__main__':
         help='the random seed for training'
     )
     parser.add_argument(
-        '--condition_config', type=str, required=True,
-        help='the path of json containing the config for condition encoder'
-    )
-    parser.add_argument(
-        '--condition_both', action='store_true',
-        help='the add condition to both reactant and product'
-    )
-    parser.add_argument(
-        '--loss', choices=['mse', 'kl'], default='mse',
-        help='the loss type for training'
-    )
-    parser.add_argument(
         '--local_heads', type=int, default=0,
-        help='the number of local heads for training, 0 for no local heads'
+        help='the number of local heads in attention'
     )
+
     args = parser.parse_args()
     print(args)
 
@@ -118,69 +106,41 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    with open(args.condition_config) as Fin:
-        condition_config = json.load(Fin)
-
-    train_set, val_set, test_set = load_sm_yield(
-        args.data_path, condition_config['data_type']
+    train_set, val_set, test_set = load_sel(
+        args.data_path, has_reag=False
     )
 
     log_dir, r2_dir, mse_dir = make_dir(args)
 
     train_loader = DataLoader(
         train_set, batch_size=args.bs, shuffle=True,
-        collate_fn=cn_colfn, num_workers=args.num_worker,
+        collate_fn=sel_wo_cat_colfn, num_workers=args.num_worker,
     )
 
     val_loader = DataLoader(
         val_set, batch_size=args.bs, shuffle=False,
-        collate_fn=cn_colfn, num_workers=args.num_worker
+        collate_fn=sel_wo_cat_colfn, num_workers=args.num_worker
     )
 
     test_loader = DataLoader(
         test_set, batch_size=args.bs, shuffle=False,
-        collate_fn=cn_colfn, num_workers=args.num_worker
+        collate_fn=sel_wo_cat_colfn, num_workers=args.num_worker
     )
-
-    if condition_config['mode'] == 'mix-all':
-        condition_infos = {
-            'mixed': {
-                'dim': condition_config['dim'],
-                'heads': args.heads
-            }
-        }
-    elif condition_config['mode'] == 'mix-catalyst-ligand':
-        condition_infos = {
-            k: {'dim': condition_config['dim'], 'heads': args.heads}
-            for k in ['solvent', 'catalyst and ligand']
-        }
-    else:
-        condition_infos = {
-            k: {'dim': condition_config['dim'], 'heads': args.heads}
-            for k in ['ligand', 'catalyst', 'solvent']
-        }
 
     encoder = RAlignEncoder(
         n_layer=args.n_layer, emb_dim=args.dim,  edge_dim=args.dim,
-        heads=args.heads, reac_batch_infos=condition_infos,
-        prod_batch_infos=condition_infos if args.condition_both else {},
-        prod_num_keys={}, reac_num_keys={}, dropout=args.dropout,
+        heads=args.heads, dropout=args.dropout,
         negative_slope=args.negative_slope, update_last_edge=False
     )
 
-    condition_encoder = build_sm_condition_encoder(
-        config=condition_config, dropout=args.dropout
-    )
-
-    model = CNYieldModel(
-        encoder=encoder, condition_encoder=condition_encoder,
-        dim=args.dim, dropout=args.dropout, heads=args.heads,
-        out_dim=1 if args.loss == 'mse' else 2
+    model = RegressionModel(
+        encoder=encoder, condition_encoder=None,
+        dim=args.dim, dropout=args.dropout, heads=args.heads
     ).to(device)
 
     total_params, trainable_params = count_parameters(model)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     lr_sher = ExponentialLR(optimizer, gamma=args.lrgamma)
 
     log_info = {
@@ -194,25 +154,22 @@ if __name__ == '__main__':
 
     best_pref, best_ep, best_mse, best_ep2 = [None] * 4
 
-    if args.loss == 'mse':
-        train_func = train_regression
-        eval_func = eval_regression
-    else:
-        train_func = partial(train_mol_yield, loss_fun=args.loss)
-        eval_func = eval_mol_yield
-
     for ep in range(args.epoch):
         print(f'[INFO] training epoch {ep}')
-        loss = train_func(
-            train_loader, model, optimizer, device,
-            total_heads=args.heads, local_heads=args.local_heads,
-            warmup=(ep < args.warmup)
+        loss = train_regression(
+            train_loader, model, optimizer, device, total_heads=args.heads,
+            local_heads=args.local_heads,
+            warmup=(ep < args.warmup), has_reag=False
         )
-        val_results = eval_func(
-            val_loader, model, device, total_heads=args.heads, local_heads=args.local_heads,
+        val_results = eval_regression(
+            val_loader, model, device, total_heads=args.heads,
+            local_heads=args.local_heads,
+            has_reag=False
         )
-        test_results = eval_func(
-            test_loader, model, device, total_heads=args.heads, local_heads=args.local_heads
+        test_results = eval_regression(
+            test_loader, model, device, total_heads=args.heads,
+            local_heads=args.local_heads,
+            has_reag=False
         )
 
         print('[Train]:', loss)
@@ -245,4 +202,3 @@ if __name__ == '__main__':
     print(f'[INFO] best MSE epoch: {best_ep2}')
     print(f'[INFO] best MSE valid loss: {log_info["valid_metric"][best_ep2]}')
     print(f'[INFO] best MSE test loss: {log_info["test_metric"][best_ep2]}')
-

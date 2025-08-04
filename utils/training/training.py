@@ -192,18 +192,21 @@ def eval_az_yield(loader, model, device, total_heads=None, local_heads=0):
 
 def train_regression(
     loader, model, optimizer, device, total_heads=None,
-    local_heads=0, warmup=False
+    local_heads=0, warmup=False, has_reag=True
 ):
-    if local_global and heads is None:
-        raise ValueError("require num heads for local global mask")
     model, los_cur = model.train(), []
     if warmup:
         warmup_iters = len(loader) - 1
         warmup_sher = warmup_lr_scheduler(optimizer, warmup_iters, 5e-2)
 
-    for reac, prod, reag, label in tqdm(loader):
-        reac, prod = reac.to(device), prod.to(device)
-        reag, label = reag.to(device), label.to(device)
+    for batch_data in tqdm(loader):
+        if has_reag:
+            reac, prod, reag, label = batch_data
+            reag = reag.to(device)
+        else:
+            reac, prod, label = batch_data
+            reag = None
+        reac, prod, label = reac.to(device), prod.to(device), label.to(device)
         if local_heads > 0:
             assert total_heads is not None, "require nheads for mask gen"
             cross_mask = generate_local_global_mask(
@@ -227,11 +230,17 @@ def train_regression(
 
 
 def eval_regression(
-    loader, model, device, total_heads=None, local_heads=0, return_raw=False
+    loader, model, device, total_heads=None, local_heads=0, return_raw=False, has_reag=True
 ):
     model, ytrue, ypred = model.eval(), [], []
-    for reac, prod, reag, label in tqdm(loader):
-        reac, prod, reag = reac.to(device), prod.to(device), reag.to(device)
+    for batch_data in tqdm(loader):
+        if has_reag:
+            reac, prod, reag, label = batch_data
+            reag = reag.to(device)
+        else:
+            reac, prod, label = batch_data
+            reag = None
+        reac, prod = reac.to(device), prod.to(device)
         if local_heads > 0:
             assert total_heads is not None, "require nheads for mask gen"
             cross_mask = generate_local_global_mask(
@@ -264,8 +273,6 @@ def train_gen(
     loader, model, optimizer, device, pad_idx, toker,
     total_heads=None, local_heads=0, warmup=False,
 ):
-    if local_global and heads is None:
-        raise ValueError("require num heads for local global mask")
     model, los_cur = model.train(), []
     if warmup:
         warmup_iters = len(loader) - 1
