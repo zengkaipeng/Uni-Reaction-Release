@@ -103,6 +103,10 @@ if __name__ == '__main__':
         '--local_heads', type=int, default=0,
         help='the number of local heads in attention'
     )
+    parser.add_argument(
+        '--encoder_ckpt', type=str, default='',
+        help='path for the weight of pretrain reaction encoder'
+    )
 
     args = parser.parse_args()
     print(args)
@@ -164,6 +168,14 @@ if __name__ == '__main__':
         negative_slope=args.negative_slope, update_last_edge=False
     )
 
+    if args.encoder_ckpt != '':
+        weight = torch.load(args.encoder_ckpt, map_location='cpu')
+        weight = {
+            k[8:]: v for k, v in weight.items()
+            if k.startswith('encoder.')
+        }
+        encoder.load_state_dict(weight, strict=False)
+
     condition_encoder = build_cn_condition_encoder(
         config=condition_config, dropout=args.dropout
     )
@@ -196,11 +208,11 @@ if __name__ == '__main__':
             total_heads=args.heads, local_heads=args.local_heads, loss_fun='kl'
         )
         val_results = eval_mol_yield(
-            val_loader, model, device, total_heads=args.heads, 
+            val_loader, model, device, total_heads=args.heads,
             local_heads=args.local_heads
         )
         test_results = eval_mol_yield(
-            test_loader, model, device, total_heads=args.heads, 
+            test_loader, model, device, total_heads=args.heads,
             local_heads=args.local_heads
         )
 
