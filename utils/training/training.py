@@ -264,8 +264,8 @@ def eval_regression(
     }
 
     if return_raw:
-        result['ytrue'] = ytrue
-        result['ypred'] = ypred
+        result['label'] = ytrue.flatten().tolist()
+        result['prediction'] = ypred.flatten().tolist()
     return result
 
 

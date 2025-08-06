@@ -8,11 +8,11 @@ import pandas as pd
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 
-from utils.data_utils import load_sm_yield_one, count_parameters
-from utils.training import train_mol_yield, eval_mol_yield
-from utils.Dataset import cn_colfn
+from utils.data_utils import load_sel, fix_seed, count_parameters
+from utils.training import train_regression, eval_regression
+from utils.Dataset import sel_with_cat_colfn
 
-from model import CNYieldModel, RAlignEncoder, build_sm_condition_encoder
+from model import RegressionModel, RAlignEncoder, build_dm_condition_encoder
 
 
 if __name__ == '__main__':
@@ -22,7 +22,7 @@ if __name__ == '__main__':
         help='the part of dataset to be used for prediction'
     )
     parser.add_argument(
-        '--log_dir', '-l', type=str, default='logs',
+        '--log_dir', '-l', type=str, required=True,
         help='the path of log directory'
     )
 
@@ -42,32 +42,18 @@ if __name__ == '__main__':
     with open(args.condition_config) as Fin:
         condition_config = json.load(Fin)
 
-    test_set = load_sm_yield_one(
-        data_path, cmd_args.part, condition_config['data_type']
+    train_set, val_set, test_set = load_sel(
+        args.data_path, condition_config['data_type']
     )
 
     test_loader = DataLoader(
         test_set, batch_size=args.bs, shuffle=False,
-        collate_fn=cn_colfn, num_workers=args.num_worker
+        collate_fn=sel_with_cat_colfn, num_workers=args.num_worker
     )
 
-    if condition_config['mode'] == 'mix-all':
-        condition_infos = {
-            'mixed': {
-                'dim': condition_config['dim'],
-                'heads': args.heads
-            }
-        }
-    elif condition_config['mode'] == 'mix-catalyst-ligand':
-        condition_infos = {
-            k: {'dim': condition_config['dim'], 'heads': args.heads}
-            for k in ['solvent', 'catalyst and ligand']
-        }
-    else:
-        condition_infos = {
-            k: {'dim': condition_config['dim'], 'heads': args.heads}
-            for k in ['ligand', 'catalyst', 'solvent']
-        }
+    condition_infos = {
+        'catalyst': {'dim': condition_config['dim'], 'heads': args.heads}
+    }
 
     encoder = RAlignEncoder(
         n_layer=args.n_layer, emb_dim=args.dim,  edge_dim=args.dim,
@@ -77,17 +63,15 @@ if __name__ == '__main__':
         negative_slope=args.negative_slope, update_last_edge=False
     )
 
-    condition_encoder = build_sm_condition_encoder(
+    condition_encoder = build_dm_condition_encoder(
         config=condition_config, dropout=args.dropout
     )
 
-    model = CNYieldModel(
+    model = RegressionModel(
         encoder=encoder, condition_encoder=condition_encoder,
-        dim=args.dim, dropout=args.dropout, heads=args.heads,
-        out_dim=1 if args.loss == 'mse' else 2
+        dim=args.dim, dropout=args.dropout, heads=args.heads
     ).to(device)
 
-    # load ckpt from log dir
     print('[INFO] loading model from', log_dir)
     model.load_state_dict(
         torch.load(os.path.join(log_dir, 'model.pth'), map_location=device)
@@ -102,17 +86,19 @@ if __name__ == '__main__':
     else:
         assert False, 'local_heads or local_global must be specified'
 
-    test_results = eval_mol_yield(
-        test_loader, model, device, total_heads=total_heads, local_heads=local_heads,
+
+    test_results = eval_regression(
+        test_loader, model, device, 
+        total_heads=total_heads, local_heads=local_heads,
         return_raw=True
     )
 
+    pred = test_results.pop('ypred')
+    true = test_results.pop('ytrue')
     print(test_results)
-    pred_yield = test_results['ypred']
-    true_yield = test_results['ytrue']
     df = pd.DataFrame({
-        'pred_yield': pred_yield.flatten(),
-        'true_yield': true_yield.flatten()
+        'pred': pred.flatten(),
+        'true': true.flatten()
     })
     data_postfix = data_path.replace('/', '_').replace('\\', '_')
     df.to_csv(os.path.join(log_dir, f'pred_{cmd_args.part}.csv'), index=False)
