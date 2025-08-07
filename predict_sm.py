@@ -107,7 +107,6 @@ if __name__ == '__main__':
         return_raw=True
     )
 
-    print(test_results)
     pred_yield = test_results['ypred']
     true_yield = test_results['ytrue']
     df = pd.DataFrame({
