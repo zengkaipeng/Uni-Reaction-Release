@@ -8,12 +8,11 @@ import pandas as pd
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader
 
-from utils.data_utils import load_sm_yield_one, count_parameters
+from utils.data_utils import load_cn_yield_one, fix_seed, count_parameters
 from utils.training import train_mol_yield, eval_mol_yield
 from utils.Dataset import cn_colfn
 
-from model import CNYieldModel, RAlignEncoder, build_sm_condition_encoder
-
+from model import CNYieldModel, RAlignEncoder, build_cn_condition_encoder
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parser for prediction model')
@@ -42,8 +41,8 @@ if __name__ == '__main__':
     with open(args.condition_config) as Fin:
         condition_config = json.load(Fin)
 
-    test_set = load_sm_yield_one(
-        data_path, cmd_args.part, condition_config['data_type']
+    test_set = load_cn_yield_one(
+        args.data_path, 'test', condition_config['data_type']
     )
 
     test_loader = DataLoader(
@@ -61,12 +60,12 @@ if __name__ == '__main__':
     elif condition_config['mode'] == 'mix-catalyst-ligand':
         condition_infos = {
             k: {'dim': condition_config['dim'], 'heads': args.heads}
-            for k in ['solvent', 'catalyst and ligand']
+            for k in ['additive', 'base', 'catalyst and ligand']
         }
     else:
         condition_infos = {
             k: {'dim': condition_config['dim'], 'heads': args.heads}
-            for k in ['ligand', 'catalyst', 'solvent']
+            for k in ['ligand', 'base', 'additive', 'catalyst']
         }
 
     encoder = RAlignEncoder(
@@ -77,14 +76,13 @@ if __name__ == '__main__':
         negative_slope=args.negative_slope, update_last_edge=False
     )
 
-    condition_encoder = build_sm_condition_encoder(
+    condition_encoder = build_cn_condition_encoder(
         config=condition_config, dropout=args.dropout
     )
 
     model = CNYieldModel(
         encoder=encoder, condition_encoder=condition_encoder,
-        dim=args.dim, dropout=args.dropout, heads=args.heads,
-        out_dim=1 if args.loss == 'mse' else 2
+        dim=args.dim, dropout=args.dropout, heads=args.heads
     ).to(device)
 
     # load ckpt from log dir
@@ -100,18 +98,21 @@ if __name__ == '__main__':
         print('[INFO] OLD setting: local_global')
         local_heads = 0 if not args.local_global else total_heads >> 1
     else:
-        assert False, 'local_heads or local_global must be specified'
+        local_heads = total_heads >> 1
+        # assert False, 'local_heads or local_global must be specified'
 
     test_results = eval_mol_yield(
         test_loader, model, device, total_heads=total_heads, local_heads=local_heads,
         return_raw=True
     )
-
-    pred_yield = test_results['ypred']
-    true_yield = test_results['ytrue']
     df = pd.DataFrame({
-        'pred_yield': pred_yield.flatten(),
-        'true_yield': true_yield.flatten()
+        'prediction': test_results['prediction'],
+        'label': test_results['label']
     })
     data_postfix = data_path.replace('/', '_').replace('\\', '_')
-    df.to_csv(os.path.join(log_dir, f'pred_{cmd_args.part}.csv'), index=False)
+    result_csv = os.path.join(log_dir, f'pred_{cmd_args.part}.csv')
+    df.to_csv(result_csv, index=False)
+    result_json = result_csv.replace('.csv', '.json')
+
+    with open(result_json, 'w') as f:
+        json.dump(test_results, f, indent=4)
