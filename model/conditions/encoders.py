@@ -230,6 +230,45 @@ def build_cn_condition_encoder(config, dropout):
     return encoder
 
 
+def build_cn_condition_encoder_with_eval(config, dropout):
+    eval_mode_layers = []
+    if config['type'] == 'pretrain':
+        dropout = config['arch'].get('drop_ratio', dropout)
+        config['arch']['drop_ratio'] = dropout
+        if config.get('pretrain_ckpt', '') != '':
+            gnn = PretrainGIN(num_layer=5, emb_dim=300, drop_ratio=dropout)
+            gnn.load_from_pretrained(config['pretrain_ckpt'])
+            freeze_mode = config.get('freeze_mode', 'none')
+            if freeze_mode.startswith('freeze'):
+                freeze_layer = int(freeze_mode.split('-')[1])
+                assert freeze_layer < 5, \
+                    "last layer norm changed, finetune required"
+                gnn.requires_grad_(False)
+                for x in range(freeze_layer):
+                    gnn.batch_norms[x].eval()
+                    eval_mode_layers.append(gnn.batch_norms[x])
+
+                for x in range(freeze_layer, 5):
+                    gnn.batch_norms[x].requires_grad_(True)
+                    gnn.gnns[x].requires_grad_(True)
+            else:
+                assert freeze_mode == 'none', \
+                    f"Invalid freeze mode {freeze_mode}"
+            encoder = CNConditionEncoder(300, gnn, config['mode'])
+        else:
+            gnn = PretrainGIN(**config['arch'])
+            encoder = CNConditionEncoder(config['dim'], gnn, config['mode'])
+    elif config['type'] == 'gat':
+        dropout = config['arch'].get('dropout', dropout)
+        config['arch']['dropout'] = dropout
+        gnn = SimpleCondGAT(**config['arch'])
+        encoder = CNConditionEncoder(config['dim'], gnn, config['mode'])
+    else:
+        raise NotImplementedError(f'Invalid gnn type {config["type"]}')
+
+    return encoder, eval_mode_layers
+
+
 def build_az_condition_encoder(
     config, dropout, use_temperature, use_sol_vol, use_vol, num_emb_dim
 ):
@@ -439,5 +478,7 @@ def build_basic_condition_encoder(config, dropout, EncoderClass):
 
     return encoder
 
-build_sm_condition_encoder = partial(build_basic_condition_encoder, EncoderClass=SMConditionEncoder)
+
+build_sm_condition_encoder = partial(
+    build_basic_condition_encoder, EncoderClass=SMConditionEncoder)
 # build_cn_condition_encoder = partial(build_basic_condition_encoder, EncoderClass=CNConditionEncoder)

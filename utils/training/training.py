@@ -230,7 +230,8 @@ def train_regression(
 
 
 def eval_regression(
-    loader, model, device, total_heads=None, local_heads=0, return_raw=False, has_reag=True
+    loader, model, device, total_heads=None, local_heads=0,
+    return_raw=False, has_reag=True
 ):
     model, ytrue, ypred = model.eval(), [], []
     for batch_data in tqdm(loader):
@@ -438,3 +439,47 @@ def eval_uspto_condition(
     results['overall'] = overall
     results = {k: v.float().mean().item() for k, v in results.items()}
     return results
+
+
+def train_mol_yield_freeze(
+    loader, model, optimizer, device, total_heads=None, local_heads=0,
+    warmup=False, loss_fun='kl', freeze_layers=None
+):
+    model, los_cur = model.train(), []
+    if warmup:
+        warmup_iters = len(loader) - 1
+        warmup_sher = warmup_lr_scheduler(optimizer, warmup_iters, 5e-2)
+    if freeze_layers is not None:
+        for x in freeze_layers:
+            x.eval()
+
+    for reac, prod, reag, label in tqdm(loader):
+        reac, prod = reac.to(device), prod.to(device)
+        reag, label = reag.to(device), label.to(device)
+        if local_heads > 0:
+            assert total_heads is not None, "require nheads for mask gen"
+            cross_mask = generate_local_global_mask(
+                reac, prod, 1, total_heads, local_heads
+            )
+        else:
+            cross_mask = None
+
+        res = model(reac, prod, reag, cross_mask=cross_mask)
+        if loss_fun == 'kl':
+            assert res.shape[-1] == 2, 'kl requires two outputs'
+            res = torch.log_softmax(res, dim=-1)
+            sm_label = torch.stack([label, 100 - label], dim=1) / 100
+            loss = kl_div(res, sm_label, reduction='batchmean')
+        else:
+            assert loss_fun == 'mse', f'Invalid loss_fun {loss_fun}'
+            assert res.shape[-1] == 1, 'requires single output'
+            loss = mse_loss(label / 100, res.squeeze(dim=-1))
+
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        los_cur.append(loss.item())
+        if warmup:
+            warmup_sher.step()
+
+    return np.mean(los_cur)

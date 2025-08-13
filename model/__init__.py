@@ -3,12 +3,15 @@ from .model import (
     USPTO500MTModel, USPTOConditionModel
 )
 
-from .block import RAlignEncoder, TranDec, PositionalEncoding, DualGATEncoder
+from .block import (
+    RAlignEncoder, TranDec, PositionalEncoding, DualGATEncoder,
+    RAlignEncoderExtend
+)
 from .conditions import (
     CNConditionEncoder, NumEmbedding, AzConditionEncoder,
     build_cn_condition_encoder, build_dm_condition_encoder,
     DMConditionEncoder, build_az_condition_encoder,
-    build_sm_condition_encoder
+    build_sm_condition_encoder, build_cn_condition_encoder_with_eval
 )
 
 
@@ -18,5 +21,6 @@ __all__ = [
     'RAlignEncoder', 'build_dm_condition_encoder', 'DMConditionEncoder',
     "build_az_condition_encoder", "AzYieldModel",
     "build_sm_condition_encoder", "USPTOConditionModel", "USPTO500MTModel",
-    "TranDec", "PositionalEncoding", "DualGATEncoder"
+    "TranDec", "PositionalEncoding", "DualGATEncoder",
+    'build_cn_condition_encoder_with_eval'
 ]
