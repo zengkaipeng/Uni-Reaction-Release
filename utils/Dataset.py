@@ -92,7 +92,29 @@ class CNYieldDataset(RAlignDatasetBase):
             gf(self.base[index]), gf(self.additive[index]), \
             gf(self.catalyst[index]), self.labels[index]
 
+class RuYieldDataset(RAlignDatasetBase):
+    def __init__(
+        self, reactions, ligand, catalyst, solvent, additive,
+        labels, condition_type='pretrain'
+    ):
+        super(RuYieldDataset, self).__init__(reactions)
+        self.ligand = ligand
+        self.catalyst = catalyst
+        self.solvent = solvent
+        self.additive = additive
+        self.labels = labels
+        self.condition_type = condition_type
 
+        assert condition_type in ['pretrain', 'raw'], \
+            f'Invalid condition type {condition_type}'
+
+    def __getitem__(self, index):
+        reac_mol, prod_mol = self.get_aligned_graphs(index)
+        gf = smiles2graph if self.condition_type == 'raw' else pretrain_s2g
+        return reac_mol, prod_mol, gf(self.ligand[index]), \
+            gf(self.solvent[index]), gf(self.additive[index]), \
+            gf(self.catalyst[index]), self.labels[index]
+    
 def graph_col_fn(batch):
     batch_size, edge_idx, node_feat, edge_feat = len(batch), [], [], []
     node_ptr,  node_batch, lstnode, isprod, vols = [0], [], 0, [], []

@@ -11,8 +11,9 @@ from .conditions import (
     CNConditionEncoder, NumEmbedding, AzConditionEncoder,
     build_cn_condition_encoder, build_dm_condition_encoder,
     DMConditionEncoder, build_az_condition_encoder,
-    build_sm_condition_encoder, build_cn_condition_encoder_with_eval
-)
+    build_sm_condition_encoder, build_cn_condition_encoder_with_eval,
+    RUConditionEncoder
+)   
 
 
 __all__ = [
@@ -22,5 +23,5 @@ __all__ = [
     "build_az_condition_encoder", "AzYieldModel",
     "build_sm_condition_encoder", "USPTOConditionModel", "USPTO500MTModel",
     "TranDec", "PositionalEncoding", "DualGATEncoder",
-    'build_cn_condition_encoder_with_eval'
+    'build_cn_condition_encoder_with_eval', 'RUConditionEncoder'
 ]

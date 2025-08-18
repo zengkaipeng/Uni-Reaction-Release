@@ -23,6 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('--input', '-i', type=str, required=True, help='Input log dir')
     parser.add_argument('--cols', '-c', type=str, default='', help='using which cols for title, split by space, default is all cols')
     parser.add_argument('--skip_first', '-sk', type=int, default=0, help='whether to skip the first epoch, default is 0')
+    parser.add_argument('--notest', action='store_true', default=False, help='whether to skip the first epoch, default is 0')
     args = parser.parse_args()
     input_dir = args.input
 
@@ -38,12 +39,16 @@ if __name__ == '__main__':
     name = get_curve_tag(log['args'], name_cols)
     # plot valid and test metrics
     valid_metric = log['valid_metric'][args.skip_first:]
-    test_metric = log['test_metric'][args.skip_first:]
+    if not args.notest:
+        test_metric = log['test_metric'][args.skip_first:]
+    else:
+        test_metric = None
     epochs = np.arange(len(valid_metric))
     for metric in valid_metric[0].keys():
         plt.figure(figsize=(12, 6))
         plt.plot(epochs, [x[metric] for x in valid_metric], label='Validation ' + metric)
-        plt.plot(epochs, [x[metric] for x in test_metric], label='Test ' + metric, linestyle='--')
+        if test_metric is not None:
+            plt.plot(epochs, [x[metric] for x in test_metric], label='Test ' + metric, linestyle='--')
         plt.xlabel('Epoch')
         plt.ylabel(metric)
         plt.title(f'{metric} of {name}')

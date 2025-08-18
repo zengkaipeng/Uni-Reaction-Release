@@ -11,7 +11,7 @@ COL_SHORT = {
 
 SHORT2COL = {v: k for k, v in COL_SHORT.items()}
 
-def validate(log_dir):
+def validate(log_dir, notest=False):
     """
         当给定log目录不满足一下条件时，返回None
         1. log.json文件不存在
@@ -24,10 +24,13 @@ def validate(log_dir):
         return None
     with open(log_json, 'r') as f:
         log = json.load(f)
-    if 'args' not in log or 'valid_metric' not in log or 'test_metric' not in log or 'train_loss' not in log:
+    if 'args' not in log or 'valid_metric' not in log or ('test_metric' not in log and not notest) or 'train_loss' not in log:
         return None
 
-    if len(set([log['args']['epoch'], len(log['train_loss']), len(log['valid_metric']), len(log['test_metric'])])) != 1:
+    sz = set([log['args']['epoch'], len(log['train_loss']), len(log['valid_metric'])])
+    if not notest:
+        sz.add(len(log['test_metric']))
+    if len(sz) != 1:
         return None
 
     return log

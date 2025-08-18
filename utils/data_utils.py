@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from .Dataset import (
     CNYieldDataset, AzYieldDataset, SMYieldDataset, SelDataset,
-    ReactionPredDataset, ReactionSeqInferenceDataset
+    ReactionPredDataset, ReactionSeqInferenceDataset, RuYieldDataset
 )
 
 from .tokenlizer import Tokenizer, smi_tokenizer
@@ -333,3 +333,28 @@ def load_uspto_condition_inference(data_path, mapper):
 
     dataset = ReactionSeqInferenceDataset(reac, all_labels, True)
     return dataset
+
+
+def load_ru(data_path, condition_type='pretrain'):
+    train_set = load_ru_one(data_path, 'train', condition_type)
+    # val_set = load_ru_one(data_path, 'val', condition_type)
+    test_set = load_ru_one(data_path, 'test', condition_type)
+    return train_set, test_set
+
+
+def load_ru_one(data_path, part, condition_type='pretrain'):
+    train_x = pandas.read_csv(os.path.join(data_path, f'{part}.csv'))
+    train_x = train_x.fillna('')
+    rxn, out, ligand, solvent, additive, catalyst = [[] for _ in range(6)]
+    for i, x in train_x.iterrows():
+        rxn.append(x['mapped_rxn'])
+        out.append(x['yield'])
+        ligand.append(x['ligand'])
+        solvent.append(x['solvent'])
+        additive.append(x['addictive'])
+        catalyst.append(x['catalyst'])
+
+    return RuYieldDataset(
+        reactions=rxn, ligand=ligand, catalyst=catalyst, solvent=solvent,
+        additive=additive, labels=out,  condition_type=condition_type
+    )

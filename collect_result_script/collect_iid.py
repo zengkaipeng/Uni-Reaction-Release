@@ -13,6 +13,7 @@ if __name__ == '__main__':
     parser.add_argument('--input', '-i', type=str, required=True, help='Input log dir')
     parser.add_argument('--best_by', '-b', type=str, default='R2', help='Metric to find best epoch')
     parser.add_argument('--iid_marker', '-iid', type=str, default='FullCV_.*', help='Marker for IID datasets')
+    parser.add_argument('--notest', '-nt', action='store_true', default=False, help='Whether to skip test metrics')
     args = parser.parse_args()
     input_file = args.input
     out_dir = osp.join(input_file, 'result_iid')
@@ -25,11 +26,12 @@ if __name__ == '__main__':
     #             'FullCV_06', 'FullCV_07', 'FullCV_08', 'FullCV_09', 'FullCV_10']
     best_by = args.best_by
     iid_marker = args.iid_marker
+    notest = args.notest
     all_model_result = {}
     for root, dirs, files in os.walk(input_file):
         if 'log.json' not in files:
             continue
-        log = validate(root)
+        log = validate(root, notest=notest)
         if log is None:
             continue
         args = log['args']
@@ -47,7 +49,7 @@ if __name__ == '__main__':
         # find best ep
         val_metric = log['valid_metric']
         best_ep = np.argmax([x[best_by] for x in val_metric])
-        best_test_result = log['test_metric'][best_ep]
+        best_test_result = log['valid_metric' if notest else 'test_metric'][best_ep]
         all_model_result[model_tag]['test_metric'][exp_dataset] = best_test_result
         all_model_result[model_tag]['args'].update({f'log_{exp_dataset}' : root})
         all_model_result[model_tag]['best_ep'][exp_dataset] = best_ep

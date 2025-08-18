@@ -8,6 +8,7 @@ import os
 import json
 import pandas as pd
 from utils import COL_SHORT
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 '''
 usage: python draw_log.py --input /path/to/log/dir
 Output: plots of validation and test metrics, and train loss over epochs in the given log directory.
@@ -22,7 +23,7 @@ def get_curve_tag(args, cols):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=' Args of the script: draw_log')
     parser.add_argument('--input', '-i', type=str, required=True, help='Input log dir')
-    parser.add_argument('--part', '-p', type=str, default='', help='use result of pred_{part}.csv')
+    parser.add_argument('--part', '-p', type=str, default='test', help='use result of pred_{part}.csv')
     args = parser.parse_args()
     input_dir = args.input
 
@@ -43,8 +44,10 @@ if __name__ == '__main__':
         exit(0)
 
     data = pd.read_csv(pred_csv)
-    true_yield = data['true_yield']
-    pred_yield = data['pred_yield']
+    true_yield = data['label']
+    pred_yield = data['prediction']
+
+    r2, mae, mse = r2_score(true_yield, pred_yield), mean_absolute_error(true_yield, pred_yield), mean_squared_error(true_yield, pred_yield)
 
     # scater plot
     plt.figure(figsize=(8, 8))
@@ -61,7 +64,7 @@ if __name__ == '__main__':
     # plt.yticks(np.arange(true_yield.min() - 0.1, true_yield.max() + 0.1, 0.1))  
     plt.xlabel('True Yield')
     plt.ylabel('Predicted Yield')
-    plt.title(f'{name}')
+    plt.title(f'{name}\nR2: {r2:.4f}, MAE: {mae:.4f}, MSE: {mse:.4f}')
     plt.grid()
     plt.savefig(os.path.join(input_dir, f'scatter_{args.part}.png'))
     plt.close()
