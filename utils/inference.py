@@ -3,7 +3,8 @@ import torch
 
 def beam_search_500mt(
     model, reac, prod, device, begin_token, toker, max_len=500, beams=10,
-    total_heads=None, local_heads=0, end_token='<END>', pad_token='<PAD>'
+    total_heads=None, local_heads=0, end_token='<END>', pad_token='<PAD>',
+    prefix=None
 ):
     model, reac, prod = model.eval(), reac.to(device), prod.to(device)
     pad_index = toker.token2idx[pad_token]
@@ -13,6 +14,13 @@ def beam_search_500mt(
     bs = reac.batch_mask.shape[0]
     start_tokens = torch.LongTensor(toker.encode1d([begin_token] * bs))
     start_tokens = start_tokens.reshape(-1, 1).to(device)
+
+    if prefix is not None:
+        if isinstance(prefix, str):
+            prefix = [prefix] * bs
+        assert isinstance(prefix, list) and len(prefix) == bs
+        prefix_tokens = torch.LongTensor(toker.encode2d(prefix, pad_token=pad_token)).to(device)
+        start_tokens = torch.cat([start_tokens, prefix_tokens], dim=1)
 
     with torch.no_grad():
         sm_seq, sm_logs, sm_belong = model.beam_search(

@@ -261,6 +261,17 @@ def load_uspto_mt500_inference(data_path, remap):
     dataset = ReactionSeqInferenceDataset(rxns, labels, True)
     return dataset
 
+def load_uspto_mt500_inference_json(data_path):
+    rxns, labels = [], []
+    with open(data_path) as F:
+        setx = json.load(F)
+        for lin in setx:
+            rxns.append(lin['new_mapped_rxn'])
+            labels.append(lin['reagent_list'])
+
+    dataset = ReactionSeqInferenceDataset(rxns, labels, True)
+    return dataset
+
 
 def check_early_stop(*args):
     answer = True
@@ -330,6 +341,30 @@ def load_uspto_condition_inference(data_path, mapper):
             mapper[element['reagent1']], mapper[element['reagent2']]
         ]
         all_labels.append(labels)
+
+    dataset = ReactionSeqInferenceDataset(reac, all_labels, True)
+    return dataset
+
+def load_uspto_condition_inference_json(data_path, mapper, has_label=True):
+    with open(data_path, 'r') as F:
+        raw_info = json.load(F)
+
+    reac, all_labels = [], []
+
+    for i, element in enumerate(tqdm(raw_info)):
+        reac.append(element['new_mapped_rxn'])
+        if has_label:
+            labels = [
+                mapper[element['catalyst1']],
+                mapper[element['solvent1']], mapper[element['solvent2']],
+                mapper[element['reagent1']], mapper[element['reagent2']]
+            ]
+            all_labels.append(labels)
+        else:
+            all_labels.append(element['reagent_list'])
+
+    if len(all_labels) == 0:
+        all_labels = None
 
     dataset = ReactionSeqInferenceDataset(reac, all_labels, True)
     return dataset

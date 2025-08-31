@@ -314,6 +314,7 @@ class USPTO500MTModel(torch.nn.Module):
 
         n_close = torch.zeros(bs, dtype=torch.long).to(device)
         alive = torch.ones(bs, dtype=bool).to(device)
+        begin_len = res.shape[1]
         for i in range(max_len):
             dead = torch.logical_not(alive)
             n_alive, n_dead = alive.sum().item(), dead.sum().item()
@@ -336,7 +337,7 @@ class USPTO500MTModel(torch.nn.Module):
             log_logits, belong = log_logits[alive], belong[alive]
 
             cross_mask = None if unit_cross_mask is None else\
-                unit_cross_mask[belong].repeat(1, i + 1, 1, 1)
+                unit_cross_mask[belong].repeat(1, i + begin_len, 1, 1)
 
             diag_mask = generate_square_subsequent_mask(res.shape[1], device)
             rc_out = torch.log_softmax(self.decode_a_step(
