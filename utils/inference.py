@@ -1,5 +1,5 @@
 import torch
-
+from utils.tokenlizer import smi_tokenizer
 
 def beam_search_500mt(
     model, reac, prod, device, begin_token, toker, max_len=500, beams=10,
@@ -17,8 +17,11 @@ def beam_search_500mt(
 
     if prefix is not None:
         if isinstance(prefix, str):
-            prefix = [prefix] * bs
+            prefix = [smi_tokenizer(prefix) + '`'] * bs
         assert isinstance(prefix, list) and len(prefix) == bs
+        if isinstance(prefix[0], str):
+            prefix = [smi_tokenizer(p) + ['`'] for p in prefix]
+
         prefix_tokens = torch.LongTensor(toker.encode2d(prefix, pad_token=pad_token)).to(device)
         start_tokens = torch.cat([start_tokens, prefix_tokens], dim=1)
 
