@@ -31,8 +31,8 @@ def load_sel_one(data_path, part, condition_type='pretrain', has_reag=True):
             catalyst.append(x['Catalyst'])
 
     return SelDataset(
-        reactions=rxn, catalyst=catalyst if len(catalyst) else None, labels=out,
-        condition_type=condition_type
+        reactions=rxn, catalyst=catalyst if len(catalyst) else None,
+        labels=out, condition_type=condition_type
     )
 
 
@@ -60,90 +60,6 @@ def load_cn_yield_one(data_path, part, condition_type='pretrain'):
     )
 
 
-def load_az_yield(
-    data_path, condition_type='pretrain', vol_type='min_as_one',
-    temperature_scale=100, solvent_vol_scale=1
-):
-    train_set = load_az_yield_one(
-        data_path=data_path, part='train', condition_type=condition_type,
-        vol_type=vol_type, temperature_scale=temperature_scale,
-        solvent_vol_scale=solvent_vol_scale
-    )
-    if os.path.exists(os.path.join(data_path, 'val.csv')):
-        val_set = load_az_yield_one(
-            data_path=data_path, part='val', condition_type=condition_type,
-            vol_type=vol_type, temperature_scale=temperature_scale,
-            solvent_vol_scale=solvent_vol_scale
-        )
-    else:
-        val_set = load_az_yield_one(
-            data_path=data_path, part='train', condition_type=condition_type,
-            vol_type=vol_type, temperature_scale=temperature_scale,
-            solvent_vol_scale=solvent_vol_scale
-        )
-    test_set = load_az_yield_one(
-        data_path=data_path, part='test', condition_type=condition_type,
-        vol_type=vol_type, temperature_scale=temperature_scale,
-        solvent_vol_scale=solvent_vol_scale
-    )
-    return train_set, val_set, test_set
-
-
-def load_az_yield_one(
-    data_path, part, condition_type='pretrain', vol_type='min_as_one',
-    temperature_scale=100, solvent_vol_scale=1
-):
-    train_x = pandas.read_csv(os.path.join(data_path, f'{part}.csv'))
-    reac1, reac2, out, ligand, meta, base, solvent = [[] for _ in range(7)]
-    prod, ligand_vol, meta_vol, base_vol, sol_vol = [[] for _ in range(5)]
-    reac1_vol, reac2_vol, temperature = [], [], []
-    for i, x in train_x.iterrows():
-        prod.append(x['mapped_rxn'].split('>>')[1])
-        reac1.append(x['Aryl_halide_maaped'])
-        reac2.append(x['Amine_mapped'])
-        if vol_type == 'min_as_one':
-            vbase = min(x['Aryl_halide_amount'], x['Amine_amount'])
-        elif vol_type == 'absolute':
-            vbase = 1
-        else:
-            raise ValueError(f'Invalid vol type {vol_type}')
-        reac1_vol.append(x['Aryl_halide_amount'] / vbase)
-        reac2_vol.append(x['Amine_amount'] / vbase)
-        out.append(x['Yield'])
-        ligand.append(x['Ligand'])
-        ligand_vol.append(x['Ligand_amount'])
-
-        if pandas.isna(x['Metal']):
-            meta.append('')
-            meta_vol.append(0)
-        else:
-            meta.append(x['Metal'])
-            meta_vol.append(x['Metal_amount'] / vbase)
-
-        base.append(x['Base'])
-        base_vol.append(x['Base_amount'] / vbase)
-
-        if pandas.isna(x['Solvent']):
-            solvent.append('')
-            sol_vol.append(0)
-        else:
-            solvent.append(x['Solvent'])
-            sol_vol.append(x['Solvent_amount'] / solvent_vol_scale)
-
-        temperature.append(
-            float('nan') if pandas.isna(x['Temperature'])
-            else x['Temperature'] / temperature_scale
-        )
-
-    return AzYieldDataset(
-        mapped_reac1=reac1, mapped_reac2=reac2, mapped_prod=prod,
-        labels=out, base=base, solvent=solvent, meta=meta,
-        ligand=ligand, temperature=temperature, reac1_vol=reac1_vol,
-        reac2_vol=reac2_vol, base_vol=base_vol, solvent_vol=sol_vol,
-        meta_vol=meta_vol, ligand_vol=ligand_vol, condition_type=condition_type
-    )
-
-
 def fix_seed(seed):
     random.seed(seed)
     torch.manual_seed(seed)
@@ -159,40 +75,6 @@ def count_parameters(module):
         if param.requires_grad:
             trainable_params += param.numel()
     return total_params, trainable_params
-
-
-def load_sm_yield(data_path, condition_type='pretrain'):
-    train_set = load_sm_yield_one(data_path, 'train', condition_type)
-    if os.path.exists(os.path.join(data_path, 'val.csv')):
-        val_set = load_sm_yield_one(data_path, 'val', condition_type)
-    else:
-        val_set = load_sm_yield_one(data_path, 'train', condition_type)
-
-    test_set = load_sm_yield_one(data_path, 'test', condition_type)
-    return train_set, val_set, test_set
-
-
-def load_sm_yield_one(data_path, part, condition_type='pretrain'):
-    train_x = pandas.read_csv(os.path.join(data_path, f'{part}.csv'))
-    rxn, out, ligand, solvent, catalyst = [[] for _ in range(5)]
-    for i, x in train_x.iterrows():
-        rxn.append(x['mapped_rxn'])
-        out.append(x['y'])
-        ligand.append(
-            x['ligand_smiles'] if not pandas.isna(x['ligand_smiles']) else ''
-        )
-        solvent.append(
-            x['solvent_smiles'] if not pandas.isna(x['solvent_smiles']) else ''
-        )
-        catalyst.append(
-            x['catalyst_smiles'] if not pandas.isna(x['catalyst_smiles'])
-            else ''
-        )
-
-    return SMYieldDataset(
-        reactions=rxn, ligand=ligand, catalyst=catalyst,
-        solvent=solvent, labels=out,  condition_type=condition_type
-    )
 
 
 def load_uspto_mt_500_gen(data_path, remap=None, part=None):
@@ -257,17 +139,6 @@ def load_uspto_mt500_inference(data_path, remap):
         for lin in setx:
             rxns.append(lin['new_mapped_rxn'])
             labels.append('.'.join(lin['reagent_list']))
-
-    dataset = ReactionSeqInferenceDataset(rxns, labels, True)
-    return dataset
-
-def load_uspto_mt500_inference_json(data_path):
-    rxns, labels = [], []
-    with open(data_path) as F:
-        setx = json.load(F)
-        for lin in setx:
-            rxns.append(lin['new_mapped_rxn'])
-            labels.append(lin['reagent_list'])
 
     dataset = ReactionSeqInferenceDataset(rxns, labels, True)
     return dataset
@@ -344,52 +215,3 @@ def load_uspto_condition_inference(data_path, mapper):
 
     dataset = ReactionSeqInferenceDataset(reac, all_labels, True)
     return dataset
-
-def load_uspto_condition_inference_json(data_path, mapper, has_label=True):
-    with open(data_path, 'r') as F:
-        raw_info = json.load(F)
-
-    reac, all_labels = [], []
-
-    for i, element in enumerate(tqdm(raw_info)):
-        reac.append(element['new_mapped_rxn'])
-        if has_label:
-            labels = [
-                mapper[element['catalyst1']],
-                mapper[element['solvent1']], mapper[element['solvent2']],
-                mapper[element['reagent1']], mapper[element['reagent2']]
-            ]
-            all_labels.append(labels)
-        else:
-            all_labels.append(element['reagent_list'])
-
-    if len(all_labels) == 0:
-        all_labels = None
-
-    dataset = ReactionSeqInferenceDataset(reac, all_labels, True)
-    return dataset
-
-
-def load_ru(data_path, condition_type='pretrain'):
-    train_set = load_ru_one(data_path, 'train', condition_type)
-    # val_set = load_ru_one(data_path, 'val', condition_type)
-    test_set = load_ru_one(data_path, 'test', condition_type)
-    return train_set, test_set
-
-
-def load_ru_one(data_path, part, condition_type='pretrain'):
-    train_x = pandas.read_csv(os.path.join(data_path, f'{part}.csv'))
-    train_x = train_x.fillna('')
-    rxn, out, ligand, solvent, additive, catalyst = [[] for _ in range(6)]
-    for i, x in train_x.iterrows():
-        rxn.append(x['mapped_rxn'])
-        out.append(x['yield'])
-        ligand.append(x['ligand'])
-        solvent.append(x['solvent'])
-        additive.append(x['addictive'])
-        catalyst.append(x['catalyst'])
-
-    return RuYieldDataset(
-        reactions=rxn, ligand=ligand, catalyst=catalyst, solvent=solvent,
-        additive=additive, labels=out,  condition_type=condition_type
-    )
