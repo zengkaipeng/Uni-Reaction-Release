@@ -2,8 +2,12 @@ import json
 import os
 from rdkit import Chem
 import sys
-sys.path.append('../')
-from tokenlizer import smi_tokenizer
+import os
+
+this_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.append(this_dir)
+from utils.tokenlizer import smi_tokenizer
+
 
 metal = {
     'Ag', 'Au', 'Al', 'Ca', 'Co', 'Cr', 'Fe', 'Cu',
@@ -91,8 +95,7 @@ def get_rank(x):
     )
 
 
-DATA_DIR = r'../../../data\USPTO_500_MT\data\USPTO_500_MT'
-
+DATA_DIR = "DATA_DIR"
 all_px = set()
 
 for model in ['train.json', 'val.json', 'test.json']:

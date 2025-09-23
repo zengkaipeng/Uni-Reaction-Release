@@ -14,9 +14,7 @@ def generate_rxn_infos(df):
     # pd_catalyst = "O=S(=O)(O[Pd]1~[NH2]C2C=CC=CC=2C2C=CC=CC1=2)C(F)(F)F"
     # pd_catalyst = "O=S(=O)(O[Pd]1Nc2ccccc2-c2ccccc21)C(F)(F)F"
     # pd_catalyst = 'O=S(=O)(O[Pd]1c2ccccc2-c2ccccc2N~1)C(F)(F)F'
-    pd_catalyst = Chem.MolToSmiles(Chem.MolFromSmiles(
-        'O=S(=O)(O[Pd]1~[NH2]C2C=CC=CC=2C2C=CC=CC1=2)C(F)(F)F'
-    ))
+    pd_catalyst = "O=S(O[Pd-]1C2=C(C=CC=C2)C3=C(C=CC=C3)[NH2+]1)(C(F)(F)F)=O"
     methylaniline_mol = Chem.MolFromSmiles(methylaniline)
     rxn = rdChemReactions.ReactionFromSmarts(fwd_template)
 

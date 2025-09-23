@@ -2,6 +2,7 @@ from rdkit import Chem
 import pandas
 import json
 from tqdm import tqdm
+import os
 
 
 def split_reac_reag(mapped_rxn):
@@ -82,9 +83,11 @@ def check(reac, reag, oldx):
     return newx == clear_map_number(oldx)
 
 
+DATA_DIR = "DATA_DIR"
+
 for model in ['train.csv', 'val.csv', 'test.csv']:
     out_infos = []
-    raw_info = pandas.read_csv(model)
+    raw_info = pandas.read_csv(os.path.join(DATA_DIR, model))
     raw_info = raw_info.to_dict('records')
     for idx, ele in enumerate(tqdm(raw_info)):
         mapped_rxn = ele['mapped_rxn']
