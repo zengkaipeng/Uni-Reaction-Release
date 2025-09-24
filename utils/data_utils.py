@@ -7,8 +7,8 @@ import json
 from tqdm import tqdm
 
 from .Dataset import (
-    CNYieldDataset, AzYieldDataset, SMYieldDataset, SelDataset,
-    ReactionPredDataset, ReactionSeqInferenceDataset, RuYieldDataset
+    CNYieldDataset, SelDataset, ReactionPredDataset,
+    ReactionSeqInferenceDataset
 )
 
 from .tokenlizer import Tokenizer, smi_tokenizer

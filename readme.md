@@ -102,6 +102,27 @@ python xxxx.py
 
 ## Training
 
+## USPTO-Condition
+
+To reproduce the training, use the following command for single-card training:
+
+```shell
+python train_uspto_condition.py --data_path $data_path --mapper_path $mapper_path
+```
+
+or the following command for single-machine multi-card training:
+
+```shell
+python train_uspto_condition_ddp.py --data_path $data_path --mapper_path $mapper_path
+```
+
+`$data_path` is the path to the processed `csv` file, and `$mapper_path` is the path to the reagent-index lookup table obtained during preprocessing.  The default parameters provided in the single-machine multi-card training code are the parameters used to train the open-source weights. You can also train your own version. Use the following commands to view all parameters and their meanings:
+
+```shell
+python train_uspto_condition.py -h
+python train_uspto_condition_ddp.py -h
+```
+
 ## Inference and Evaluation
 
 ### USPTO-Condition
