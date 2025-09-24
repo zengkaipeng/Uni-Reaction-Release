@@ -56,7 +56,7 @@ Next, we also need to canonicalize the labels of the dataset and generate a reag
 python cano_output.py --file_path $input_file --vocab_path $vocab_path
 ```
 
-Of course, we also provide preprocessed datasets (see [**Data, Checkpoints and Results**](##Data, Checkpoints and Results)).
+Of course, we also provide preprocessed datasets (see**Data, Checkpoints and Results**).
 
 ### USPTO-500MT
 
@@ -68,7 +68,7 @@ python regenerate_reagent_uspto_500_mt.py
 python generate_token_list_uspto_500_mt.py
 ```
 
-Then you can obtain the processed dataset from the `data_process_scripts/uspto_500mt` folder. Of course, we also provide preprocessed datasets (see [**Data, Checkpoints and Results**](##Data, Checkpoints and Results)).
+Then you can obtain the processed dataset from the `data_process_scripts/uspto_500mt` folder. Of course, we also provide preprocessed datasets (see **Data, Checkpoints and Results**).
 
 ### Buchwald-Hartwig cross-coupling reaction
 
@@ -78,7 +78,7 @@ Since all the reactions in this dataset follow the same reaction template, we us
 python data_process_script/process_cn_yield.py --input_file $input_file --output_dir $output_folder
 ```
 
-Of course, we also provide preprocessed datasets (see [**Data, Checkpoints and Results**](##Data, Checkpoints and Results)).
+Of course, we also provide preprocessed datasets (see**Data, Checkpoints and Results**).
 
 ### radical C–H functionalization
 
