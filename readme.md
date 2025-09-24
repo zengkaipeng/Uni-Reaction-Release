@@ -14,7 +14,7 @@ All the data used for model training and the checkpoints we have trained can be 
 
 - **USPTO-Condition:** The folder contains two files. The `csv` file stores the training data, and the `json` file stores the reagent-index lookup table for the dataset.
 - **USPTO-500MT:** The folder contains five `json` files. In addition to the training, validation, and test sets, we also provide a list of all reagents involved in the training labels and a list of chemical tokens.
-- **Buchwald-Hartwig cross-coupling reaction:** The folder contains ten random splits and four OOD splits. Each split folder has three files representing the training, validation, and test sets.
+- **Buchwald-Hartwig cross-coupling reaction:** (corresponding to the `bh` folder)  The folder contains ten random splits and four OOD splits. Each split folder has three files representing the training, validation, and test sets.
 - **radical C–H functionalization:** (corresponding to the `hx` folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
 - **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `dm` folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
 
@@ -22,7 +22,7 @@ All the data used for model training and the checkpoints we have trained can be 
 
 - **USPTO-Condition:** The `model.pth` file represents the model weights, and the `pkl` file stores the reagent-index lookup table for easy metric calculation and validation.
 - **USPTO-500MT:** The `model.pth` file represents the model weights, and the `pkl` file stores the reagent-index lookup table for easy metric calculation and validation.
-- **Buchwald-Hartwig cross-coupling reaction:** The folder contains checkpoints for each split. For OOD splits, we provide model weights trained with different random seeds.
+- **Buchwald-Hartwig cross-coupling reaction:** (corresponding to the `bh` folder) The folder contains checkpoints for each split. For OOD splits, we provide model weights trained with different random seeds.
 - **radical C–H functionalization:** (corresponding to the `hx` folder) Each split folder contains the model weights corresponding to that split.
 - **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `dm` folder) Each split folder contains the model weights corresponding to that split.
 
@@ -44,7 +44,7 @@ After obtaining the processed dataset from [Parrot](https://github.com/wangxr052
 cd data_process_script/uspto_condition
 ```
 
-Then, you need to execute the following script to add atom-mapping. Here, `$num_gpus` represents the number of GPUs required to add atom-mapping, `$batch_size` represents the batch size for rxnmapper inference, and `$share_size` represents the coarse-grained chunk size for the dataset. The script's execution logic is to divide the dataset into several chunks, write them into temporary files, and call another script to perform inference for different chunks on different devices. `$input_file` is the path to the CSV file containing the processed data from the Parrot project, and `$output_file` is the path where the atom-mapped dataset will be output.
+Then, you need to execute the following script to add atom-mapping. Here, `$num_gpus` represents the number of GPUs required to add atom-mapping, `$batch_size` represents the batch size for rxnmapper inference, and `$share_size` represents the coarse-grained chunk size for the dataset. The script's execution logic is to divide the dataset into several chunks, write them into temporary files, and call another script to perform inference for different chunks on different devices. `$input_file` is the path to the `csv` file containing the processed data from the Parrot project, and `$output_file` is the path where the atom-mapped dataset will be output.
 
 ```Shell
 python add_am_uspto_condition.py --num_gpus $num_gpus --batch_size $batch_size --share_size $share_size --input_file $input_file --output_file $output_file
@@ -56,7 +56,7 @@ Next, we also need to canonicalize the labels of the dataset and generate a reag
 python cano_output.py --file_path $input_file --vocab_path $vocab_path
 ```
 
-Of course, we also provide preprocessed datasets (see**Data, Checkpoints and Results**).
+Of course, we also provide preprocessed datasets (see **Data, Checkpoints and Results**).
 
 ### USPTO-500MT
 
@@ -78,7 +78,7 @@ Since all the reactions in this dataset follow the same reaction template, we us
 python data_process_script/process_cn_yield.py --input_file $input_file --output_dir $output_folder
 ```
 
-Of course, we also provide preprocessed datasets (see**Data, Checkpoints and Results**).
+Of course, we also provide preprocessed datasets (see **Data, Checkpoints and Results**).
 
 ### radical C–H functionalization
 
@@ -104,3 +104,19 @@ python xxxx.py
 
 ## Inference and Evaluation
 
+### USPTO-Condition
+
+To evaluate the results, use the following command, where `$input_file` is path of the `json` file obtained via the inference scripts and `$beam` is the beam size for beam search during the inference.
+
+```shell
+python evaluate_condition.py --file $input_file --beam $beam
+python evaluate_pred_split.py --file $input_file --beam $beam
+```
+
+### USPTO-500MT
+
+To evaluate the results, use the following command, where `$input_file` is path of the `json` file obtained via the inference scripts and `$beam` is the beam size for beam search during the inference.
+
+```shell
+python evaluate_500mt.py --file $input_file --beam $beam
+```
