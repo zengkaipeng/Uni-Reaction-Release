@@ -68,7 +68,7 @@ python regenerate_reagent_uspto_500_mt.py
 python generate_token_list_uspto_500_mt.py
 ```
 
-Of course, we also provide preprocessed datasets (see [**Data, Checkpoints and Results**](##Data, Checkpoints and Results)).
+Then you can obtain the processed dataset from the `data_process_scripts/uspto_500mt` folder. Of course, we also provide preprocessed datasets (see [**Data, Checkpoints and Results**](##Data, Checkpoints and Results)).
 
 ### Buchwald-Hartwig cross-coupling reaction
 
