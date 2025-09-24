@@ -15,16 +15,16 @@ All the data used for model training and the checkpoints we have trained can be 
 - **USPTO-Condition:** The folder contains two files. The `csv` file stores the training data, and the `json` file stores the reagent-index lookup table for the dataset.
 - **USPTO-500MT:** The folder contains five `json` files. In addition to the training, validation, and test sets, we also provide a list of all reagents involved in the training labels and a list of chemical tokens.
 - **Buchwald-Hartwig cross-coupling reaction:** The folder contains ten random splits and four OOD splits. Each split folder has three files representing the training, validation, and test sets.
-- **radical C–H functionalization:** (corresponding to the hx folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
-- **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the dm folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
+- **radical C–H functionalization:** (corresponding to the `hx` folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
+- **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `dm` folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
 
 ### Checkpoints
 
 - **USPTO-Condition:** The `model.pth` file represents the model weights, and the `pkl` file stores the reagent-index lookup table for easy metric calculation and validation.
 - **USPTO-500MT:** The `model.pth` file represents the model weights, and the `pkl` file stores the reagent-index lookup table for easy metric calculation and validation.
 - **Buchwald-Hartwig cross-coupling reaction:** The folder contains checkpoints for each split. For OOD splits, we provide model weights trained with different random seeds.
-- **radical C–H functionalization:** (corresponding to the hx folder) Each split folder contains the model weights corresponding to that split.
-- **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the dm folder) Each split folder contains the model weights corresponding to that split.
+- **radical C–H functionalization:** (corresponding to the `hx` folder) Each split folder contains the model weights corresponding to that split.
+- **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `dm` folder) Each split folder contains the model weights corresponding to that split.
 
 All checkpoints use the default parameters specified in the inference/training scripts. For the **Buchwald-Hartwig cross-coupling reaction** and **chiral phosphoric acid-catalyzed thiol addition** datasets, we provide two versions: one using a pretrained condition encoder and the other trained from scratch. You need to switch the model config as needed during inference. The model config is placed in the `config` folder.
 
