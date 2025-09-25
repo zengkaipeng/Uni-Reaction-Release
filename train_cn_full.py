@@ -35,7 +35,7 @@ if __name__ == '__main__':
         help='the path of file containing the dataset'
     )
     parser.add_argument(
-        '--dim', type=int, default=512,
+        '--dim', type=int, default=128,
         help='the number of dim for model'
     )
     parser.add_argument(
@@ -43,7 +43,7 @@ if __name__ == '__main__':
         help='the number of heads for model'
     )
     parser.add_argument(
-        '--n_layer', type=int, default=8,
+        '--n_layer', type=int, default=3,
         help='the number of layers of the model'
     )
     parser.add_argument(
@@ -59,11 +59,11 @@ if __name__ == '__main__':
         help='the lr decay rate for training'
     )
     parser.add_argument(
-        '--lr', type=float, default=1e-3,
+        '--lr', type=float, default=5e-4,
         help='the learning rate for training'
     )
     parser.add_argument(
-        '--epoch', type=int, default=100,
+        '--epoch', type=int, default=200,
         help='the number for epochs for training'
     )
     parser.add_argument(
@@ -75,7 +75,7 @@ if __name__ == '__main__':
         help='the number of worker for dataloader'
     )
     parser.add_argument(
-        '--bs', type=int, default=64,
+        '--bs', type=int, default=128,
         help='the batch size for training'
     )
     parser.add_argument(
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         help='the device id for traiing, negative for cpu'
     )
     parser.add_argument(
-        '--step_start', type=int, default=10,
+        '--step_start', type=int, default=0,
         help='the step to start lr decay'
     )
     parser.add_argument(
@@ -103,20 +103,8 @@ if __name__ == '__main__':
         help='the add condition to both reactant and product'
     )
     parser.add_argument(
-        '--local_heads', type=int, default=0,
+        '--local_heads', type=int, default=4,
         help='the number of local heads in attention'
-    )
-    parser.add_argument(
-        '--encoder_ckpt', type=str, default='',
-        help='path for the weight of pretrain reaction encoder'
-    )
-    parser.add_argument(
-        '--tuneable_encoder_layers', type=int, default=-1,
-        help='Number of fine-tunable layers.' +
-        'Negative value: all layers are fine-tunable.' +
-        'Non-negative value: specifies how many top layers' +
-        ' (counting backwards from the last layer) are ' +
-        'fine-tunable in the pretrained encoder.'
     )
 
     args = parser.parse_args()
@@ -178,22 +166,6 @@ if __name__ == '__main__':
         prod_num_keys={}, reac_num_keys={}, dropout=args.dropout,
         negative_slope=args.negative_slope, update_last_edge=False
     )
-
-    if args.encoder_ckpt != '':
-        weight = torch.load(args.encoder_ckpt, map_location='cpu')
-        weight = {
-            k[8:]: v for k, v in weight.items()
-            if k.startswith('encoder.')
-        }
-        encoder.load_state_dict(weight, strict=False)
-        if args.tuneable_encoder_layers >= 0:
-            for k, v in encoder.named_parameters():
-                if k in weight:
-                    v.requires_grad = False
-        tl = len(encoder.layers)
-        sl = max(tl - args.tuneable_encoder_layers, 0)
-        for i in range(sl, tl):
-            encoder.layers[i].requires_grad_(True)
 
     condition_encoder, eval_layers = \
         build_cn_condition_encoder_with_eval(
