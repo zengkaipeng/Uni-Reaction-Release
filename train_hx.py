@@ -32,7 +32,7 @@ if __name__ == '__main__':
         help='the path of file containing the dataset'
     )
     parser.add_argument(
-        '--dim', type=int, default=512,
+        '--dim', type=int, default=128,
         help='the number of dim for model'
     )
     parser.add_argument(
@@ -40,11 +40,11 @@ if __name__ == '__main__':
         help='the number of heads for model'
     )
     parser.add_argument(
-        '--n_layer', type=int, default=8,
+        '--n_layer', type=int, default=5,
         help='the number of layers of the model'
     )
     parser.add_argument(
-        '--dropout', type=float, default=0.1,
+        '--dropout', type=float, default=0.0,
         help='the dropout ratio for model'
     )
     parser.add_argument(
@@ -56,15 +56,15 @@ if __name__ == '__main__':
         help='the lr decay rate for training'
     )
     parser.add_argument(
-        '--lr', type=float, default=1e-3,
+        '--lr', type=float, default=0.0005,
         help='the learning rate for training'
     )
     parser.add_argument(
-        '--epoch', type=int, default=100,
+        '--epoch', type=int, default=250,
         help='the number for epochs for training'
     )
     parser.add_argument(
-        '--base_log', type=str, default='log_cn',
+        '--base_log', type=str, default='log/hx',
         help='the path for contraining log'
     )
     parser.add_argument(
@@ -92,7 +92,7 @@ if __name__ == '__main__':
         help='the random seed for training'
     )
     parser.add_argument(
-        '--local_heads', type=int, default=0,
+        '--local_heads', type=int, default=4,
         help='the number of local heads in attention'
     )
 

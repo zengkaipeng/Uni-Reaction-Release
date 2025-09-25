@@ -82,27 +82,22 @@ Of course, we also provide preprocessed datasets (see **Data, Checkpoints and Re
 
 ### radical C–H functionalization
 
-The data needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Our splitting script is placed in the corresponding folder in the uploaded data. After downloading the data, change the working directory to the corresponding folder and then run
-
+The data needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Our data processing script is placed in the `data_process_script` folder, named `process_sel.ipynb`. After downloading the data, move the data (and the script) to data-directory (such as `data/hx`), change the `src_data_path` pointing to the corresponding data, and run the jupyter notebook to get the processed data: 
 ```Shell
-python xxxx.py
+run process_sel.ipynb
 ```
-
-(or run `xxxx.ipynb`)
 
 ### chiral phosphoric acid-catalyzed thiol addition
 
-The data needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Our splitting script is placed in the corresponding folder in the uploaded data. After downloading the data, change the working directory to the corresponding folder and then run
-
+The data needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Our data processing script is placed in the `data_process_script` folder, named `process_sel.ipynb`. After downloading the data, move the data (and the script) to data-directory (such as `data/dm`), change the `src_data_path` pointing to the corresponding data, and run the jupyter notebook to get the processed data: 
 ```Shell
-python xxxx.py
+run process_sel.ipynb
 ```
 
-(or run `xxxx.ipynb`)
 
 ## Training
 
-## USPTO-Condition
+### USPTO-Condition
 
 To reproduce the training, use the following command for single-card training:
 
@@ -123,6 +118,22 @@ python train_uspto_condition.py -h
 python train_uspto_condition_ddp.py -h
 ```
 
+### radical C–H functionalization
+To reproduce the training, use the following command for single-card training:
+```shell
+python train_hx.py --data_path $data_path
+```
+
+During the trainning, a logging directory named as current timestamp in `log/hx` are generated automatically, where the checkpoint named `model.pth` and training arguments named `log.json` are placed.
+
+### chiral phosphoric acid-catalyzed thiol addition
+To reproduce the training, use the following command for single-card training:
+```shell
+python train_dm.py --data_path $data_path --condition_both --condition_config condition_config/dm/config_dm_no_pretrain_gat.json
+```
+
+During the trainning, a logging directory named as current timestamp in `log/dm` are generated automatically, where the checkpoint named `model.pth` and training arguments named `log.json` are placed.
+
 ## Inference and Evaluation
 
 ### USPTO-Condition
@@ -141,3 +152,18 @@ To evaluate the results, use the following command, where `$input_file` is path 
 ```shell
 python evaluate_500mt.py --file $input_file --beam $beam
 ```
+
+### radical C–H functionalization
+To do prediction on test set, use the following command:
+```shell
+python predict_hx.py --log_dir ${log_dir}
+```
+the `$log_dir` is the directory generated during the training procedure automatically.
+
+### chiral phosphoric acid-catalyzed thiol addition
+To do prediction on test set, use the following command:
+```shell
+python predict_dm.py --log_dir ${log_dir}
+```
+the `$log_dir` is the directory generated during the training procedure automatically.
+
