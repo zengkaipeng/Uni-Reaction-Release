@@ -82,14 +82,15 @@ Of course, we also provide preprocessed datasets (see **Data, Checkpoints and Re
 
 ### radical C–H functionalization
 
-The data needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Our data processing script is placed in the `data_process_script` folder, named `process_sel.ipynb`. After downloading the data, move the data (and the script) to data-directory (such as `data/hx`), change the `src_data_path` pointing to the corresponding data, and run the jupyter notebook to get the processed data: 
+The data needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Our data processing script is placed in the `data_process_script` folder, named `process_sel.ipynb`. After downloading the data, move the data and the script to data-directory (such as `data/hx`),  and run the jupyter notebook (`radical C–H functionalization` section) to get the processed data: 
 ```Shell
 run process_sel.ipynb
 ```
 
 ### chiral phosphoric acid-catalyzed thiol addition
 
-The data needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Our data processing script is placed in the `data_process_script` folder, named `process_sel.ipynb`. After downloading the data, move the data (and the script) to data-directory (such as `data/dm`), change the `src_data_path` pointing to the corresponding data, and run the jupyter notebook to get the processed data: 
+
+The data needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Our data processing script is placed in the `data_process_script` folder, named `process_sel.ipynb`. After downloading the data, move the data and the script to data-directory (such as `data/dm`),  and run the jupyter notebook (`chiral phosphoric acid-catalyzed thiol addition` section) to get the processed data: 
 ```Shell
 run process_sel.ipynb
 ```
