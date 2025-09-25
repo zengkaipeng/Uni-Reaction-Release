@@ -33,10 +33,6 @@ if __name__ == '__main__':
         help='the number of layers of the model'
     )
     parser.add_argument(
-        '--dropout', type=float, default=0.1,
-        help='the dropout ratio for model'
-    )
-    parser.add_argument(
         '--num_worker', type=int, default=8,
         help='the number of worker for dataloader'
     )
@@ -72,8 +68,11 @@ if __name__ == '__main__':
         '--output_path', required=True, type=str,
         help='the path of json file to store results'
     )
-
-    cmd_args = parser.parse_args()
+    parser.add_argument(
+        '--checkpoint', required=True, type=str,
+        help='the checkpoint for model'
+    )
+    args = parser.parse_args()
 
     if torch.cuda.is_available() and args.device >= 0:
         device = torch.device(f'cuda:{args.device}')
@@ -114,17 +113,17 @@ if __name__ == '__main__':
         n_layer=args.n_layer, emb_dim=args.dim,  edge_dim=args.dim,
         heads=args.heads, reac_batch_infos=condition_infos,
         prod_batch_infos=condition_infos if args.condition_both else {},
-        prod_num_keys={}, reac_num_keys={}, dropout=args.dropout,
+        prod_num_keys={}, reac_num_keys={}, dropout=0,
         negative_slope=args.negative_slope, update_last_edge=False
     )
 
-    condition_encoder = build_cn_condition_encoder(
+    condition_encoder, _ = build_cn_condition_encoder_with_eval(
         config=condition_config, dropout=args.dropout
     )
 
     model = CNYieldModel(
         encoder=encoder, condition_encoder=condition_encoder,
-        dim=args.dim, dropout=args.dropout, heads=args.heads
+        dim=args.dim, dropout=0, heads=args.heads
     ).to(device)
 
     # load ckpt from log dir
@@ -137,10 +136,6 @@ if __name__ == '__main__':
         test_loader, model, device, total_heads=args.total_heads,
         local_heads=args.local_heads, return_raw=True
     )
-    df = pd.DataFrame({
-        'prediction': test_results['prediction'],
-        'label': test_results['label']
-    })
 
     with open(args.output_path, 'w') as f:
         json.dump(test_results, f, indent=4)
