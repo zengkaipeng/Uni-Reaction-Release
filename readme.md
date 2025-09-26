@@ -16,15 +16,15 @@ All the data used for model training and the checkpoints we have trained can be 
 - **USPTO-500MT:** The folder contains five `json` files. In addition to the training, validation, and test sets, we also provide a list of all reagents involved in the training labels and a list of chemical tokens.
 - **Buchwald-Hartwig cross-coupling reaction:** (corresponding to the `bh` folder)  The folder contains ten random splits and four OOD splits. Each split folder has three files representing the training, validation, and test sets.
 - **radical C–H functionalization:** (corresponding to the `hx` folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
-- **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `dm` folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
+- **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `denmark` folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
 
 ### Checkpoints
 
 - **USPTO-Condition:** The `model.pth` file represents the model weights, and the `pkl` file stores the reagent-index lookup table for easy metric calculation and validation.
 - **USPTO-500MT:** The `model.pth` file represents the model weights, and the `pkl` file stores the reagent-index lookup table for easy metric calculation and validation.
-- **Buchwald-Hartwig cross-coupling reaction:** (corresponding to the `bh` folder) The folder contains checkpoints for each split. For OOD splits, we provide model weights trained with different random seeds.
+- **Buchwald-Hartwig cross-coupling reaction:** (corresponding to the `cn` and `cn-nopretrain` folder) The folder contains checkpoints for each split. For OOD splits, we provide model weights trained with different random seeds.
 - **radical C–H functionalization:** (corresponding to the `hx` folder) Each split folder contains the model weights corresponding to that split.
-- **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `dm` folder) Each split folder contains the model weights corresponding to that split.
+- **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `dm` and `dm-nopretrain` folder) Each split folder contains the model weights corresponding to that split.
 
 All checkpoints use the default parameters specified in the inference/training scripts. For the **Buchwald-Hartwig cross-coupling reaction** and **chiral phosphoric acid-catalyzed thiol addition** datasets, we provide two versions: one using a pretrained condition encoder and the other trained from scratch. You need to switch the model config as needed during inference. The model config is placed in the `config` folder.
 
@@ -80,21 +80,8 @@ python data_process_script/process_cn_yield.py --input_file $input_file --output
 
 Of course, we also provide preprocessed datasets (see **Data, Checkpoints and Results**).
 
-### radical C–H functionalization
-
-The data needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Our data processing script is placed in the `data_process_script` folder, named `process_sel.ipynb`. After downloading the data, move the data and the script to data-directory (such as `data/hx`),  and run the jupyter notebook (`radical C–H functionalization` section) to get the processed data: 
-```Shell
-run process_sel.ipynb
-```
-
-### chiral phosphoric acid-catalyzed thiol addition
-
-
-The data needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Our data processing script is placed in the `data_process_script` folder, named `process_sel.ipynb`. After downloading the data, move the data and the script to data-directory (such as `data/dm`),  and run the jupyter notebook (`chiral phosphoric acid-catalyzed thiol addition` section) to get the processed data: 
-```Shell
-run process_sel.ipynb
-```
-
+### radical C–H functionalization and chiral phosphoric acid-catalyzed thiol addition
+The original data of these two datasets needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Moreover, these two datasets share the same data splitting logic. Our data processing script is placed in the `data_process_script` folder, named `process_sel.ipynb`. After downloading the original data, you need to put the notebook and the downloaded data into the same folder, and then execute the corresponding cells according to the comments in the Jupyter Notebook to add atom-mapping and perform data splitting for the respective datasets. **The scripts needs to be executed under the environment of rxnmapper.** Of course, we also provide the preprocessed datasets (see [**Data, Checkpoints and Results**](##Data, Checkpoints and Results)).
 
 ## Training
 
@@ -119,7 +106,14 @@ python train_uspto_condition.py -h
 python train_uspto_condition_ddp.py -h
 ```
 
+### USPTO-500MT
+
+To reproduce the training, use the following command:
+
+
+
 ### radical C–H functionalization
+
 To reproduce the training, use the following command for single-card training:
 ```shell
 python train_hx.py --data_path $data_path
