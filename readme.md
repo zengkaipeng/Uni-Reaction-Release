@@ -121,7 +121,7 @@ To reproduce the training, use the following command, where `$data_path` is the 
 python train_cn_full.py --data_path $data_path --base_log $base_log --condition_config $condition_config
 ```
 
-During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`, where the checkpoint named `model.pth` and the training arguments named `log.json` are placed. To prevent confusion, you might need to set different `base_log` directories for different data splits.
+During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`, where the checkpoint named `model.pth` and the training arguments named `log.json` are placed. To prevent confusion, you might need to set different `base_log` directories for different data splits. The default parameters provided in the code are those used to train the open-source weights, except for the non-pretrained version under OOD splits. **To reproduce experiments on the four OOD splits with a non-pretrained condition encoder, add the `--dim 64`.**
 
 ### radical C–H functionalization
 
