@@ -187,7 +187,7 @@ To inference and evaluate the result, use the following command, where `$data_pa
 python predict_cn.py/predict_dm.py --data_path $data_path --condition_config $condition_config --checkpoint $checkpoint --output $output_path
 ```
 
-`predict_cn.py` is for Buchwald-Hartwig cross-coupling reaction dataset and `predict_dm` is for chiral phosphoric acid-catalyzed thiol addition. `configA` and configB is for the version with pretrained/non-pretrained condition encoder for Buchwald-Hartwig cross-coupling reaction dataset, respectively. `configA` and configB is for the version with pretrained/non-pretrained condition encoder for chiral phosphoric acid-catalyzed thiol addition dataset, respectively.  
+`predict_cn.py` is for Buchwald-Hartwig cross-coupling reaction dataset and `predict_dm` is for chiral phosphoric acid-catalyzed thiol addition. `configA` and configB is for the version with pretrained/non-pretrained condition encoder for Buchwald-Hartwig cross-coupling reaction dataset, respectively. `configA` and configB is for the version with pretrained/non-pretrained condition encoder for chiral phosphoric acid-catalyzed thiol addition dataset, respectively.  **To perform the inference on the provided checkpoint of non-pretrained version on Buchwald-Hartwig cross-coupling reaction dataset's OOD split, add `--dim 64`.**
 
 ### radical C–H functionalization
 
