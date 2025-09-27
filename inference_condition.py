@@ -38,15 +38,15 @@ if __name__ == '__main__':
         help='the path of file containing the dataset'
     )
     parser.add_argument(
-        '--dim', type=int, default=512,
+        '--dim', type=int, default=384,
         help='the number of dim for model'
     )
     parser.add_argument(
-        '--heads', type=int, default=8,
+        '--heads', type=int, default=6,
         help='the number of heads for model'
     )
     parser.add_argument(
-        '--n_layer', type=int, default=8,
+        '--n_layer', type=int, default=6,
         help='the number of layers of the model'
     )
     parser.add_argument(
@@ -54,7 +54,7 @@ if __name__ == '__main__':
         help='the negative slope of model'
     )
     parser.add_argument(
-        '--local_heads', type=int, default=0,
+        '--local_heads', type=int, default=3,
         help='the number of local heads in attention'
     )
 
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         help='remove the alignment layer in encoder'
     )
     parser.add_argument(
-        '--batch_size', type=int, default=128,
+        '--batch_size', type=int, default=256,
         help='the batch size for inference'
     )
     parser.add_argument(

@@ -108,30 +108,55 @@ python train_uspto_condition_ddp.py -h
 
 ### USPTO-500MT
 
-To reproduce the training, use the following command:
+To reproduce the training, use the following command, where the `$data_path` here represents the folder containing the processed data.
 
+```shell
+python train_500mt_gen.py --data_path $data_path 
+```
 
+### Buchwald-Hartwig cross-coupling reaction
+
+To reproduce the training, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config. We use `configA` for the version without pretraining and `configB` for the version with a pretrained condition encoder.
+```shell
+python train_cn_full.py --data_path $data_path --base_log $base_log --condition_config $condition_config
+```
+
+During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`, where the checkpoint named `model.pth` and the training arguments named `log.json` are placed. To prevent confusion, you might need to set different `base_log` directories for different data splits.
 
 ### radical C–H functionalization
 
-To reproduce the training, use the following command for single-card training:
+To reproduce the training, use the following command, where `$data_path` is the path to a specific data split of dataset.
+
 ```shell
-python train_hx.py --data_path $data_path
+python train_hx.py --data_path $data_path --base_log $base_log 
 ```
 
-During the trainning, a logging directory named as current timestamp in `log/hx` are generated automatically, where the checkpoint named `model.pth` and training arguments named `log.json` are placed.
+During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits.
 
 ### chiral phosphoric acid-catalyzed thiol addition
-To reproduce the training, use the following command for single-card training:
+
+To reproduce the training, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config. We use `configA` for the version without pretraining and `configB` for the version with a pretrained condition encoder.
 ```shell
 python train_dm.py --data_path $data_path --condition_both --condition_config condition_config/dm/config_dm_no_pretrain_gat.json
 ```
 
-During the trainning, a logging directory named as current timestamp in `log/dm` are generated automatically, where the checkpoint named `model.pth` and training arguments named `log.json` are placed.
+During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits.
 
 ## Inference and Evaluation
 
 ### USPTO-Condition
+
+To inference the prediction using a certain checkpoint, use the following command, where `$data_path` is the path of the processed dataset, `$checkpoint` is the path of checkpoint, `$token_ckpt` is the path of the corresponding `pkl` file for the reagent-index lookup table and `$output_path` is the output file path. 
+
+```shell
+python inference_condition.py --data_path $data_path --token_ckpt $token_ckpt --checkpoint $checkpoint --output_file $output_path
+```
+
+The provided default values of args are those of the provided checkpoints. To adapt to different structures and hardware, you may need to modify the other parameters. Use the following commands to view the relevant parameters and their meanings.
+
+```shell
+python inference_condition.py -h
+```
 
 To evaluate the results, use the following command, where `$input_file` is path of the `json` file obtained via the inference scripts and `$beam` is the beam size for beam search during the inference.
 
@@ -142,23 +167,33 @@ python evaluate_pred_split.py --file $input_file --beam $beam
 
 ### USPTO-500MT
 
+To inference the prediction using a certain checkpoint, use the following command, where `$data_path` is the path of the processed dataset, `$checkpoint` is the path of checkpoint, `$token_ckpt` is the path of the corresponding `pkl` file for the smiles tokenizer and `$output_path` is the output file path. 
+
+```shell
+python inference_uspto_500mt.py --data_path $data_path --token_ckpt $token_ckpt --checkpoint $checkpoint --output_file $output_path
+```
+
 To evaluate the results, use the following command, where `$input_file` is path of the `json` file obtained via the inference scripts and `$beam` is the beam size for beam search during the inference.
 
 ```shell
 python evaluate_500mt.py --file $input_file --beam $beam
 ```
 
-### radical C–H functionalization
-To do prediction on test set, use the following command:
-```shell
-python predict_hx.py --log_dir ${log_dir}
-```
-the `$log_dir` is the directory generated during the training procedure automatically.
+### Buchwald-Hartwig cross-coupling reaction and chiral phosphoric acid-catalyzed thiol addition
 
-### chiral phosphoric acid-catalyzed thiol addition
-To do prediction on test set, use the following command:
+To inference and evaluate the result, use the following command, where `$data_path` is the path of the specific data split of dataset need to evaluate, `$condition_config` is the path to the model config, `$checkpoint` is the path to the checkpoint and `$output_path` is the path to store the prediction and ground truth. 
+
 ```shell
-python predict_dm.py --log_dir ${log_dir}
+python predict_cn.py/predict_dm.py --data_path $data_path --condition_config $condition_config --checkpoint $checkpoint --output $output_path
 ```
-the `$log_dir` is the directory generated during the training procedure automatically.
+
+`predict_cn.py` is for Buchwald-Hartwig cross-coupling reaction dataset and `predict_dm` is for chiral phosphoric acid-catalyzed thiol addition. `configA` and configB is for the version with pretrained/non-pretrained condition encoder for Buchwald-Hartwig cross-coupling reaction dataset, respectively. `configA` and configB is for the version with pretrained/non-pretrained condition encoder for chiral phosphoric acid-catalyzed thiol addition dataset, respectively.  
+
+### radical C–H functionalization
+
+To inference and evaluate the result, use the following command, where `$data_path` is the path of the specific data split of dataset need to evaluate, `$condition_config` is the path to the model config and `$output_path` is the path to store the prediction and ground truth. 
+
+```shell
+python predict_hx.py --data_path $data_path --checkpoint $checkpoint --output $output_path
+```
 

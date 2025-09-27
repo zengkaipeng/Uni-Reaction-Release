@@ -64,7 +64,7 @@ if __name__ == '__main__':
         help='the number for epochs for training'
     )
     parser.add_argument(
-        '--base_log', type=str, default='log/hx',
+        '--base_log', type=str, default='log_hx',
         help='the path for contraining log'
     )
     parser.add_argument(
