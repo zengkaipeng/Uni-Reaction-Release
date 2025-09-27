@@ -1,7 +1,6 @@
 import torch
 from .layers import DotMhAttn
 from .utils import graph2batch
-from .conditions import NumEmbeddingWithNan, NumEmbedding
 from utils.tensor_utils import (
     generate_square_subsequent_mask, generate_topk_mask,
     generate_local_global_mask
