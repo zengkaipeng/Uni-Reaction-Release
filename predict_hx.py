@@ -50,10 +50,6 @@ if __name__ == '__main__':
         help='the device id for traiing, negative for cpu'
     )
     parser.add_argument(
-        '--step_start', type=int, default=10,
-        help='the step to start lr decay'
-    )
-    parser.add_argument(
         '--seed', type=int, default=2025,
         help='the random seed for training'
     )
