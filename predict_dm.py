@@ -109,7 +109,9 @@ if __name__ == '__main__':
         negative_slope=args.negative_slope, update_last_edge=False
     )
 
-    condition_encoder = build_dm_condition_encoder(config=condition_config, 0)
+    condition_encoder = build_dm_condition_encoder(
+        config=condition_config, dropout=0
+    )
 
     model = RegressionModel(
         encoder=encoder, condition_encoder=condition_encoder,
