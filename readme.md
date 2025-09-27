@@ -6,6 +6,12 @@ Official Implementation of paper:
 
 ## Environment
 
+install anaconda or miniconda, then set up the environment via
+
+```shell
+conda env create -f environment.yml
+```
+
 ## Data, Checkpoints and Results
 
 All the data used for model training and the checkpoints we have trained can be found through this [link](https://drive.google.com/drive/folders/1xruOB2ooBOaNGHQBT8_2ebGnwKMI2veG?usp=sharing). Below is a brief description of the format.
