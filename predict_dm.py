@@ -125,12 +125,12 @@ if __name__ == '__main__':
 
     test_results = eval_regression(
         test_loader, model, device, return_raw=True,
-        total_heads=total_heads, local_heads=local_heads
+        total_heads=args.heads, local_heads=args.local_heads
     )
 
     with open(args.output_path, 'w') as f:
         json.dump(test_results, f, indent=4)
 
     print('MAE:', test_results['MAE'])
-    print('RMSE:', test_results['MSR'] ** 0.5)
+    print('RMSE:', test_results['MSE'] ** 0.5)
     print('R2:', test_results['R2'])

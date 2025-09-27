@@ -118,7 +118,7 @@ if __name__ == '__main__':
     )
 
     condition_encoder, _ = build_cn_condition_encoder_with_eval(
-        config=condition_config, dropout=args.dropout
+        config=condition_config, dropout=0
     )
 
     model = CNYieldModel(
@@ -133,7 +133,7 @@ if __name__ == '__main__':
     model.load_state_dict(weight)
 
     test_results = eval_mol_yield(
-        test_loader, model, device, total_heads=args.total_heads,
+        test_loader, model, device, total_heads=args.heads,
         local_heads=args.local_heads, return_raw=True
     )
 
@@ -141,5 +141,5 @@ if __name__ == '__main__':
         json.dump(test_results, f, indent=4)
 
     print('MAE:', test_results['MAE'])
-    print('RMSE:', test_results['MSR'] ** 0.5)
+    print('RMSE:', test_results['MSE'] ** 0.5)
     print('R2:', test_results['R2'])

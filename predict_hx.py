@@ -100,13 +100,13 @@ if __name__ == '__main__':
     model.load_state_dict(weight)
 
     test_results = eval_regression(
-        test_loader, model, device, total_heads=args.total_heads,
-        local_heads=args.local_heads, has_reag=False, return_raw=True
+        test_loader, model, device, local_heads=args.local_heads,
+        total_heads=args.heads, has_reag=False, return_raw=True
     )
 
     with open(args.output_path, 'w') as f:
         json.dump(test_results, f, indent=4)
 
     print('MAE:', test_results['MAE'])
-    print('RMSE:', test_results['MSR'] ** 0.5)
+    print('RMSE:', test_results['MSE'] ** 0.5)
     print('R2:', test_results['R2'])
