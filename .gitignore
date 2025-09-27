@@ -7,7 +7,7 @@ test_freeze_gnn.py
 calc_mean_std.py
 log_cn
 log_az*
-condition_config/*
+# condition_config/*
 data
 run_logs
 draw_results
