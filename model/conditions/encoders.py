@@ -104,7 +104,7 @@ def build_cn_condition_encoder_with_eval(config, dropout):
 class DMConditionEncoder(torch.nn.Module):
     def __init__(self, gnn_dim, gnn):
         super(DMConditionEncoder, self).__init__()
-        self.gnn, self.mode = gnn, mode
+        self.gnn, self.mode = gnn, 'independent'
         self.empty_mol = torch.nn.Parameter(torch.randn(gnn_dim))
 
     def forward(self, shared_gnn):
