@@ -144,7 +144,7 @@ During the training, a logging directory named with the current timestamp will b
 
 ### chiral phosphoric acid-catalyzed thiol addition
 
-To reproduce the training, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config. We use `configA` for the version without pretraining and `configB` for the version with a pretrained condition encoder.
+To reproduce the training, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config. We use `condition_config\dm\config_dm_no_pretrain_gat.json` for the version without pretraining and `condition_config\dm\config_dm_no_pretrain_gat.json` for the version with a pretrained condition encoder.
 ```shell
 python train_dm.py --data_path $data_path --condition_both --condition_config condition_config/dm/config_dm_no_pretrain_gat.json
 ```
@@ -196,7 +196,7 @@ To inference and evaluate the result, use the following command, where `$data_pa
 python predict_cn.py/predict_dm.py --data_path $data_path --condition_config $condition_config --checkpoint $checkpoint --output $output_path --condition_both
 ```
 
-`predict_cn.py` is for Buchwald-Hartwig cross-coupling reaction dataset and `predict_dm` is for chiral phosphoric acid-catalyzed thiol addition. `condition_config/cn/cn_config_pretrain_sep.json` and `condition_config/cn/config_cn_no_pretrain_sep_gat.json` is for the version with pretrained/non-pretrained condition encoder for Buchwald-Hartwig cross-coupling reaction dataset, respectively. `configA` and configB is for the version with pretrained/non-pretrained condition encoder for chiral phosphoric acid-catalyzed thiol addition dataset, respectively.  **To perform the inference on the provided checkpoint of non-pretrained version on Buchwald-Hartwig cross-coupling reaction dataset's OOD split, add `--dim 64 --condition_config condition_config/cn/config_cn_no_pretrain_sep_gat_64_8_3.json`**
+`predict_cn.py` is for Buchwald-Hartwig cross-coupling reaction dataset and `predict_dm` is for chiral phosphoric acid-catalyzed thiol addition. `condition_config/cn/cn_config_pretrain_sep.json` and `condition_config/cn/config_cn_no_pretrain_sep_gat.json` is for the version with pretrained/non-pretrained condition encoder for Buchwald-Hartwig cross-coupling reaction dataset, respectively. `condition_config\dm\config_dm_no_pretrain_gat.json` and `condition_config\dm\config_dm_no_pretrain_gat.json` is for the version with pretrained/non-pretrained condition encoder for chiral phosphoric acid-catalyzed thiol addition dataset, respectively.  **To perform the inference on the provided checkpoint of non-pretrained version on Buchwald-Hartwig cross-coupling reaction dataset's OOD split, add `--dim 64 --condition_config condition_config/cn/config_cn_no_pretrain_sep_gat_64_8_3.json`**
 
 ### radical C–H functionalization
 
