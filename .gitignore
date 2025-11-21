@@ -12,3 +12,4 @@ data
 run_logs
 draw_results
 draw_script
+condition_local_inference.py

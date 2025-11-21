@@ -14,7 +14,7 @@ conda env create -f environment.yml
 
 ## Data, Checkpoints and Results
 
-All the data used for model training and the checkpoints we have trained can be found through this [link](https://drive.google.com/drive/folders/1xruOB2ooBOaNGHQBT8_2ebGnwKMI2veG?usp=sharing). Below is a brief description of the format.
+All the data used for model training and the checkpoints we have trained can be found through this [link](https://drive.google.com/drive/folders/1OwBjdyKmtq660md7-OqpkDhSMqQ4Pm5M?usp=sharing). Below is a brief description of the format.
 
 ### Data
 
