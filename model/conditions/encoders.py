@@ -1,6 +1,6 @@
 import torch
 
-from ..utils import graph2batch
+from utils.tensor_utils import graph2batch
 from .pretrain_gnns import PretrainGIN
 from .SimpleGAT import SimpleCondGAT
 

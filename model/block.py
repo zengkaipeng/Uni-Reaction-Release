@@ -1,10 +1,10 @@
 import torch
-
-from .layers import RAlignGATBlock, DualGATBlock, TransDecLayer
-from .utils import graph2batch
+import math
 
 from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
-import math
+
+from utils.tensor_utils import graph2batch
+from .layers import RAlignGATBlock, DualGATBlock, TransDecLayer
 
 
 class PositionalEncoding(torch.nn.Module):
