@@ -1,4 +1,5 @@
 import torch
+from utils.tensor_utils import graph2batch
 
 
 class ConditionAdaptor(torch.nn.Module):
