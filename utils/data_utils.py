@@ -215,3 +215,149 @@ def load_uspto_condition_inference(data_path, mapper):
 
     dataset = ReactionSeqInferenceDataset(reac, all_labels, True)
     return dataset
+
+
+def load_uspto_yield(data_path, part='all'):
+    """
+    加载JSONL格式的数据，并创建USPTOYieldDataset实例
+
+    Args:
+        data_path: str, JSONL文件的路径
+        part: str, 可以是 'train', 'val', 'test', 'all'
+            如果是 'all'，则返回一个字典，包含三个部分的数据集
+            否则返回指定部分的数据集
+
+    Returns:
+        如果 part == 'all': 返回字典 {'train': train_dataset, 'val': val_dataset, 'test': test_dataset}
+        否则: 返回对应的USPTOYieldDataset实例
+    """
+
+    # 检查文件是否存在
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f"Data file not found: {data_path}")
+
+    # 读取所有数据
+    all_data = []
+    with open(data_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            if line.strip():  # 跳过空行
+                try:
+                    all_data.append(json.loads(line.strip()))
+                except json.JSONDecodeError as e:
+                    print(f"Warning: Skipping invalid JSON line: {e}")
+                    continue
+
+    if not all_data:
+        raise ValueError(f"No valid data found in {data_path}")
+
+    # 根据part参数筛选数据
+    if part.lower() == 'all':
+        # 分别筛选train/val/test数据
+        train_data = \
+            [item for item in all_data if item.get('dataset') == 'train']
+        val_data = [item for item in all_data if item.get('dataset') == 'val']
+        test_data = \
+            [item for item in all_data if item.get('dataset') == 'test']
+
+        # 创建对应的数据集
+        datasets = {}
+        for part_name, data in [
+            ('train', train_data),
+            ('val', val_data),
+            ('test', test_data)
+        ]:
+            if data:  # 如果该部分有数据
+                reactants, products, reagents, temperatures, yields = \
+                    _prepare_data_uspto_yield(data)
+                datasets[part_name] = USPTOYieldDataset(
+                    reactants=reactants,
+                    products=products,
+                    reagents=reagents,
+                    temperatures=temperatures,
+                    yields=yields
+                )
+            else:
+                print(f"Warning: No {part_name} data found")
+                datasets[part_name] = None
+
+        return datasets
+
+    else:
+        # 筛选指定部分的数据
+        part_lower = part.lower()
+        if part_lower not in ['train', 'val', 'test']:
+            raise ValueError(
+                f"Invalid part value: {part}. "
+                f"Must be 'train', 'val', 'test', or 'all'"
+            )
+
+        filtered_data = [item for item in all_data if item.get(
+            'dataset') == part_lower]
+
+        if not filtered_data:
+            raise ValueError(f"No {part} data found in {data_path}")
+
+        # 准备数据
+        reactants, products, reagents, temperatures, yields = \
+            _prepare_data_uspto_yield(filtered_data)
+
+        # 创建数据集
+        dataset = USPTOYieldDataset(
+            reactants=reactants,
+            products=products,
+            reagents=reagents,
+            temperatures=temperatures,
+            yields=yields
+        )
+
+        return dataset
+
+
+def _prepare_data_uspto_yield(data_list):
+    """
+    将原始数据转换为USPTOYieldDataset需要的格式
+
+    Args:
+        data_list: list of dict, 原始数据列表
+
+    Returns:
+        reactants: list of list, 每个内层list是[(smiles, vol, amount), ...]
+        products: list of str, 产物的mapped_smiles
+        reagents: list of list, 每个内层list是[(smiles, vol, amount), ...]
+        temperatures: list of float/None, 温度值
+    """
+    reactants = []
+    products = []
+    reagents = []
+    temperatures = []
+    yields = []
+
+    for item in data_list:
+        # 提取reactants
+        sample_reactants = []
+        for r in item.get('reactants', []):
+            smiles = r['smiles']
+            # 处理可能的None值
+            amount = r.get('amount')
+            volume = r.get('volume')
+            sample_reactants.append((smiles, volume, amount))
+        reactants.append(sample_reactants)
+
+        # 提取product
+        products.append(item['product'])
+
+        # 提取reagents
+        sample_reagents = []
+        for r in item.get('reagents', []):
+            smiles = r['smiles']
+            # 处理可能的None值
+            amount = r.get('amount')
+            volume = r.get('volume')
+            sample_reagents.append((smiles, volume, amount))
+        reagents.append(sample_reagents)
+
+        # 提取temperature
+        temperatures.append(item.get('temperature'))
+        yields.append(item['yield'])
+
+    return reactants, products, reagents, temperatures, yields
