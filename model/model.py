@@ -31,7 +31,9 @@ class RegressionModel(torch.nn.Module):
         )
         self.xln = torch.nn.LayerNorm(dim)
 
-    def forward(self, reac_graph, prod_graph, conditions=None, cross_mask=None):
+    def forward(
+        self, reac_graph, prod_graph, conditions=None, cross_mask=None
+    ):
         if conditions is not None and self.condition_encoder is not None:
             condition_dict = self.condition_encoder(conditions)
         else:
@@ -404,3 +406,88 @@ class USPTO500MTModel(torch.nn.Module):
                 break
 
         return res, log_logits, belong
+
+
+class USPTOYield(torch.nn.Module):
+    def __init__(
+        self, encoder, condition_encoder, amount_encoder,
+        temperature_encoder, dim, heads, dropout=0.1, out_dim=2
+    ):
+        super(USPTOYield, self).__init__()
+        self.encoder = encoder
+        self.condition_encoder = condition_encoder
+        self.out_head = torch.nn.Sequential(
+            torch.nn.Linear(dim, dim),
+            torch.nn.SiLU(),
+            torch.nn.Dropout(dropout),
+            torch.nn.Linear(dim, dim),
+            torch.nn.SiLU(),
+            torch.nn.Linear(dim, dim),
+            torch.nn.SiLU(),
+            torch.nn.Dropout(dropout),
+            torch.nn.Linear(dim, dim),
+            torch.nn.SiLU(),
+            torch.nn.Linear(dim, out_dim)
+        )
+        self.pool_keys = torch.nn.Parameter(torch.randn(1, 1, dim))
+        self.pooler = DotMhAttn(
+            Qdim=dim, Kdim=dim, Vdim=dim, Odim=dim,
+            emb_dim=dim, num_heads=heads, dropout=dropout
+        )
+        self.xln = torch.nn.LayerNorm(dim)
+        self.amount_encoder = amount_encoder
+        self.temperature_encoder = temperature_encoder
+
+    def extract_features(
+        self, reac_graph, prod_graph, reagents, temperatures=None,
+        temperature_unk=None, cross_mask=None
+    ):
+        condition_dict = self.condition_encoder(reagents)
+        num_condition_reac, num_condition_prod = {}, {}
+        if self.amount_encoder is not None:
+            amount_emb = self.amount_encoder(
+                (reac_graph.amount, reac_graph.amount_unk),
+                (reac_graph.volumn, reac_graph.vol_unk)
+            )
+            num_condition_reac['amount'] = \
+                graph2batch(amount_emb, reac_graph.batch_mask)
+        if self.temperature_encoder is not None:
+            assert temperatures is not None and temperature_unk\
+                is not None, "Require Temperature input"
+            temp_feats = self.temperature_encoder(
+                (temperatures, temperature_unk)
+            )
+            num_condition_reac['temperature'] = temp_feats[:, None]
+            num_condition_prod['temperature'] = temp_feats[:, None]
+        x_reac, x_prod, _, _ = self.encoder(
+            reac_graph=reac_graph,
+            reac_batched_condition=condition_dict,
+            reac_num_conditions=num_condition_reac,
+            prod_graph=prod_graph,
+            prod_batched_condition=condition_dict,
+            prod_num_conditions=num_condition_prod
+        )
+
+        x_reac = graph2batch(x_reac, reac_graph.batch_mask)
+        x_prod = graph2batch(x_prod, prod_graph.batch_mask)
+        memory = torch.cat([x_reac, x_prod], dim=1)
+        memory_mask = [reac_graph.batch_mask, prod_graph.batch_mask]
+        memory_mask = torch.logical_not(torch.cat(memory_mask, dim=1))
+
+        pool_key = self.pool_keys.repeat(memory.shape[0], 1, 1)
+        pooled_results, p_attn = self.pooler(
+            query=pool_key, key=memory, value=memory,
+            key_padding_mask=memory_mask, attn_mask=cross_mask
+        )
+        reaction_emb = self.xln(pooled_results.squeeze(dim=1))
+        return reaction_emb
+
+    def forward(
+        self, reac_graph, prod_graph, reagents, temperatures=None,
+        temperature_unk=None, cross_mask=None
+    ):
+        reaction_emb = self.extract_features(
+            reac_graph, prod_graph, reagents, temperatures,
+            temperature_unk, cross_mask
+        )
+        return self.out_head(reaction_emb)
