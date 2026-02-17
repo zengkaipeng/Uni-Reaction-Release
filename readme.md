@@ -89,6 +89,18 @@ Of course, we also provide preprocessed datasets (see **Data, Checkpoints and Re
 ### radical C–H functionalization and chiral phosphoric acid-catalyzed thiol addition
 The original data of these two datasets needs to be processed with rxnmapper to add atom-mapping and to perform random dataset splitting. Moreover, these two datasets share the same data splitting logic. Our data processing script is placed in the `data_process_script` folder, named `process_sel.ipynb`. After downloading the original data, you need to put the notebook and the downloaded data into the same folder, and then execute the corresponding cells according to the comments in the Jupyter Notebook to add atom-mapping and perform data splitting for the respective datasets. **The scripts needs to be executed under the environment of rxnmapper.** Of course, we also provide the preprocessed datasets (see [**Data, Checkpoints and Results**](##Data, Checkpoints and Results)).
 
+## Training & Inference
+
+### chiral phosphoric acid-catalyzed thiol addition
+
+To reproduce the training, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config. We use `condition_config\dm\config_dm_no_pretrain_gat.json` for the version without pretraining and `condition_config\dm\config_dm_pretrain.json` for the version with a pretrained condition encoder.
+
+```shell
+python train_dm.py --data_path $data_path --condition_config condition_config/dm/config_dm_no_pretrain_gat.json
+```
+
+During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits.
+
 ## Training
 
 ### USPTO-Condition
@@ -142,14 +154,7 @@ python train_hx.py --data_path $data_path --base_log $base_log
 
 During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits.
 
-### chiral phosphoric acid-catalyzed thiol addition
 
-To reproduce the training, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config. We use `condition_config\dm\config_dm_no_pretrain_gat.json` for the version without pretraining and `condition_config\dm\config_dm_pretrain.json` for the version with a pretrained condition encoder.
-```shell
-python train_dm.py --data_path $data_path --condition_both --condition_config condition_config/dm/config_dm_no_pretrain_gat.json
-```
-
-During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits.
 
 ## Inference and Evaluation
 

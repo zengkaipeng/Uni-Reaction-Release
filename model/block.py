@@ -1,6 +1,7 @@
 import torch
 import math
 
+from typing import Dict, Union, List
 from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
 
 from utils.tensor_utils import graph2batch
@@ -55,9 +56,19 @@ class TranDec(torch.nn.Module):
 
 class RAlignEncoder(torch.nn.Module):
     def __init__(
-        self, n_layer, emb_dim, heads, edge_dim, reac_batch_infos={},
-        reac_num_keys={}, prod_batch_infos={}, prod_num_keys={},
-        dropout=0.1, negative_slope=0.2, update_last_edge=False
+        self,
+        n_layer: int,
+        emb_dim: int,
+        heads: int,
+        edge_dim: int,
+        reac_batch_infos: Dict[str, Dict[str, int]] = {},
+        reac_num_keys: Dict[str, int] = {},
+        prod_batch_infos: Dict[str, Dict[str, int]] = {},
+        prod_num_keys: Dict[str, int] = {},
+        dropout: float = 0.1,
+        negative_slope: float = 0.2,
+        update_last_edge: bool = False,
+        fusion_order: Union[str, List[List[str]]] = 'ca_first'
     ):
         super(RAlignEncoder, self).__init__()
         self.n_layers = n_layer
@@ -69,7 +80,7 @@ class RAlignEncoder(torch.nn.Module):
                 reac_batch_infos=reac_batch_infos, reac_num_keys=reac_num_keys,
                 prod_batch_infos=prod_batch_infos, prod_num_keys=prod_num_keys,
                 negative_slope=negative_slope, dropout=dropout,
-                edge_update=update_edge
+                edge_update=update_edge, fusion_order=fusion_order
             ))
 
         self.update_last_edge = update_last_edge
@@ -106,9 +117,19 @@ class RAlignEncoder(torch.nn.Module):
 
 class DualGATEncoder(torch.nn.Module):
     def __init__(
-        self, n_layer, emb_dim, heads, edge_dim, reac_batch_infos={},
-        reac_num_keys={}, prod_batch_infos={}, prod_num_keys={},
-        dropout=0.1, negative_slope=0.2, update_last_edge=False
+        self,
+        n_layer: int,
+        emb_dim: int,
+        heads: int,
+        edge_dim: int,
+        reac_batch_infos: Dict[str, Dict[str, int]] = {},
+        reac_num_keys: Dict[str, int] = {},
+        prod_batch_infos: Dict[str, Dict[str, int]] = {},
+        prod_num_keys: Dict[str, int] = {},
+        dropout: float = 0.1,
+        negative_slope: float = 0.2,
+        update_last_edge: bool = False,
+        fusion_order: Union[str, List[List[str]]] = 'ca_first'
     ):
         super(DualGATEncoder, self).__init__()
         self.n_layers = n_layer
@@ -120,7 +141,7 @@ class DualGATEncoder(torch.nn.Module):
                 reac_batch_infos=reac_batch_infos, reac_num_keys=reac_num_keys,
                 prod_batch_infos=prod_batch_infos, prod_num_keys=prod_num_keys,
                 negative_slope=negative_slope, dropout=dropout,
-                edge_update=update_edge
+                edge_update=update_edge, fusion_order=fusion_order
             ))
 
         self.update_last_edge = update_last_edge

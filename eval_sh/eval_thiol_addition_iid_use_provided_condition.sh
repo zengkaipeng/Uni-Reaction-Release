@@ -154,6 +154,10 @@ for x in "${checkpoint_folders[@]}"; do
         --device "$device" \
         --condition_config "$condition_config_path" \
         --output "$output_file" \
+        --dim 128\
+        --n_layer 3\
+        --negative_slope 0.2\
+        --local_heads 4\
         --checkpoint "$checkpoint_file" > "$log_file" 2>&1
     exit_code=$?
     set -e  # 重新启用 exit on error
