@@ -149,7 +149,11 @@ fi
 # 运行评估
 echo "Evaluating results in $result_dir with beam size $beam_size"
 python "$script_dir/eval_condition.py" \
-    --path "$result_dir" \
+    --file "$result_dir" \
+    --beam "$beam_size"
+
+python "$script_dir/evaluate_pred_split.py" \
+    --file"$result_dir" \
     --beam "$beam_size"
 
 echo "Done."

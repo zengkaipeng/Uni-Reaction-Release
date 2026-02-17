@@ -29,7 +29,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parser for prediction model')
     parser.add_argument(
         '--data_path', required=True, type=str,
-        help='the path of file containing the dataset'
+        help='the path of folder containing the dataset'
     )
     parser.add_argument(
         '--dim', type=int, default=128,
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--heads', type=int, default=8,
-        help='the number of heads for model'
+        help='the number of heads of attentions in model'
     )
     parser.add_argument(
         '--n_layer', type=int, default=3,
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--lrgamma', type=float, default=1,
-        help='the lr decay rate for training'
+        help='the lr decay rate for ExponentialLR scheduler'
     )
     parser.add_argument(
         '--lr', type=float, default=5e-5,
@@ -77,11 +77,11 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--negative_slope', type=float, default=0.2,
-        help='the negative slope of model'
+        help='the negative slope of leaky relu in model'
     )
     parser.add_argument(
         '--device', type=int, default=0,
-        help='the device id for traiing, negative for cpu'
+        help='the device id for trainng, negative for cpu'
     )
     parser.add_argument(
         '--step_start', type=int, default=10,
@@ -143,7 +143,7 @@ if __name__ == '__main__':
         heads=args.heads, reac_batch_infos=condition_infos,
         prod_batch_infos=condition_infos, update_last_edge=False,
         prod_num_keys={}, reac_num_keys={}, dropout=args.dropout,
-        negative_slope=args.negative_slope
+        negative_slope=args.negative_slope, fusion_order='ca_first'
     )
 
     condition_encoder = build_dm_condition_encoder(

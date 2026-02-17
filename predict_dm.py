@@ -19,7 +19,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parser for prediction model')
     parser.add_argument(
         '--data_path', required=True, type=str,
-        help='the path of file containing the dataset'
+        help='the path of folder containing the dataset'
     )
     parser.add_argument(
         '--dim', type=int, default=128,
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--heads', type=int, default=8,
-        help='the number of heads for model'
+        help='the number of heads of attentions in model'
     )
     parser.add_argument(
         '--n_layer', type=int, default=3,
@@ -39,11 +39,11 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--bs', type=int, default=64,
-        help='the batch size for training'
+        help='the batch size for inference'
     )
     parser.add_argument(
         '--negative_slope', type=float, default=0.2,
-        help='the negative slope of model'
+        help='the negative slope of leaky relu in model'
     )
     parser.add_argument(
         '--device', type=int, default=0,
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--seed', type=int, default=2025,
-        help='the random seed for training'
+        help='the random seed for inference'
     )
     parser.add_argument(
         '--condition_config', type=str, required=True,
@@ -98,7 +98,7 @@ if __name__ == '__main__':
         heads=args.heads, reac_batch_infos=condition_infos,
         prod_batch_infos=condition_infos, update_last_edge=False,
         prod_num_keys={}, reac_num_keys={}, dropout=0,
-        negative_slope=args.negative_slope
+        negative_slope=args.negative_slope, fusion_order='ca_first'
     )
 
     condition_encoder = build_dm_condition_encoder(

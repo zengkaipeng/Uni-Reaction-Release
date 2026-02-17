@@ -1,7 +1,7 @@
 import torch
 import math
 
-from typing import Dict, Union, List
+from typing import Dict, Union, List, Optional
 from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
 
 from utils.tensor_utils import graph2batch
@@ -29,8 +29,13 @@ class PositionalEncoding(torch.nn.Module):
 
 class TranDec(torch.nn.Module):
     def __init__(
-        self, n_layers, emb_dim, heads, dropout=0,
-        kvdim=None, dim_ff=None
+        self,
+        n_layers: int,
+        emb_dim: int,
+        heads: int,
+        dropout: float = 0,
+        kvdim: Optional[int] = None,
+        dim_ff: Optional[int] = None
     ):
         super(TranDec, self).__init__()
         self.layers = torch.nn.ModuleList([

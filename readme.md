@@ -93,13 +93,57 @@ The original data of these two datasets needs to be processed with rxnmapper to 
 
 ### chiral phosphoric acid-catalyzed thiol addition
 
-To reproduce the training, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config. We use `condition_config\dm\config_dm_no_pretrain_gat.json` for the version without pretraining and `condition_config\dm\config_dm_pretrain.json` for the version with a pretrained condition encoder.
+To reproduce the **training**, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config. We use `condition_config/dm/config_dm_no_pretrain_gat.json` for the version without pretraining and `condition_config/dm/config_dm_pretrain.json` for the version with a pretrained condition encoder.
 
 ```shell
 python train_dm.py --data_path $data_path --condition_config condition_config/dm/config_dm_no_pretrain_gat.json
 ```
 
-During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits.
+During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits. You can run the following command to view all the parameters accepted by the script and make corresponding adjustments.
+
+```shell
+python train_dm.py --help
+```
+
+To **inference and evaluate** the result, use the following command, where `$data_path` is the path of the specific data split of dataset need to evaluate, `$condition_config` is the path to the condition encoder config, `$checkpoint` is the path to the checkpoint and `$output_path` is the path to store the prediction and ground truth. 
+
+```shell
+python predict_dm.py --data_path $data_path --condition_config $condition_config --checkpoint $checkpoint --output $output_path 
+```
+
+`condition_config/dm/cn_config_pretrain_sep.json` and `condition_config/dm/config_cn_no_pretrain_sep_gat.json` is for the version with pretrained/non-pretrained condition encoder for Buchwald-Hartwig cross-coupling reaction dataset, respectively. 
+
+If you want to directly use the checkpoint we provide for inference and view the results, please use the following bash scripts. For IID data partitioning, use the script below.
+
+```shell
+# bash eval_sh/eval_thiol_addition_iid_use_provided_condition.sh --help
+# This script performs inference and evaluation on the hiral phosphoric acid-catalyzed thiol addition dataset.
+# Options:
+#   --result_dir PATH       Directory to store results (required)
+#   --checkpoint_dir PATH   Path to checkpoint directory (required)
+#   --data_path PATH        Path to dataset directory (required)
+#   --batch_size INT        Batch size for inference (default: 128)
+#   --device INT            Device ID (-1 for CPU) (default: -1)
+#   --use_pretrain          Use pretrained condition encoder (flag)
+#   --help                  Show this help message
+
+
+# for model with pretrained condition encoder
+bash eval_sh/eval_thiol_addition_iid_use_provided_condition.sh \
+   --result_dir $result_dir \
+   --checkpoint_dir $checkpoint_path \
+   --data_path $data_path --use_pretrain 
+
+# for model without pretrained condition encoder
+bash eval_sh/eval_thiol_addition_iid_use_provided_condition.sh \
+   --result_dir $result_dir \
+   --checkpoint_dir $checkpoint_path \
+   --data_path $data_path
+```
+
+Here, `checkpoint_path` refers to the folder that stores all checkpoints, corresponding to `checkpoints/denmark/iid_with_pretrained_condition_encoder` or `checkpoints/denmark/iid_without_pretrained_condition_encoder` in the files shared via Google Drive. `data_path` refers to the directory that stores the IID data partitions, corresponding to `Data/denmark/iid` in the files shared via Google Drive.
+
+
 
 ## Training
 
