@@ -34,10 +34,6 @@ if __name__ == '__main__':
         help='the number of layers of the model'
     )
     parser.add_argument(
-        '--epoch', type=int, default=250,
-        help='the number for epochs for training'
-    )
-    parser.add_argument(
         '--num_worker', type=int, default=8,
         help='the number of worker for dataloader'
     )
@@ -60,10 +56,6 @@ if __name__ == '__main__':
     parser.add_argument(
         '--condition_config', type=str, required=True,
         help='the path of json containing the config for condition encoder'
-    )
-    parser.add_argument(
-        '--condition_both', action='store_true',
-        help='the add condition to both reactant and product'
     )
     parser.add_argument(
         '--local_heads', type=int, default=4,
@@ -104,9 +96,9 @@ if __name__ == '__main__':
     encoder = RAlignEncoder(
         n_layer=args.n_layer, emb_dim=args.dim,  edge_dim=args.dim,
         heads=args.heads, reac_batch_infos=condition_infos,
-        prod_batch_infos=condition_infos if args.condition_both else {},
+        prod_batch_infos=condition_infos, update_last_edge=False,
         prod_num_keys={}, reac_num_keys={}, dropout=0,
-        negative_slope=args.negative_slope, update_last_edge=False
+        negative_slope=args.negative_slope
     )
 
     condition_encoder = build_dm_condition_encoder(
