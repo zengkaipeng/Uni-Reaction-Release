@@ -14,9 +14,10 @@ usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
-This script performs inference and evaluation on a single dataset (with train.csv, val.csv, test.csv)
-using multiple checkpoint files (different random seeds). It computes MAE, RMSE, R2 for each checkpoint
-and then reports mean and standard deviation across seeds.
+This script performs inference and evaluation on a single split (with train.csv, val.csv, test.csv)
+of the chiral phosphoric acid-catalyzed thiol addition dataset using multiple checkpoint files 
+(different random seeds). It computes MAE, RMSE, R2 for each checkpoint and then reports 
+mean and standard deviation across seeds.
 
 Options:
   --result_dir PATH       Directory to store results (required)

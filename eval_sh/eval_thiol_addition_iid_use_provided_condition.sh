@@ -14,20 +14,22 @@ usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
-This script performs inference and evaluation on the hiral phosphoric acid-catalyzed thiol addition dataset.
+This script performs inference and evaluation on multiple data splits of the chiral phosphoric acid-catalyzed thiol 
+addition dataset using corresponding checkpoint files. Each checkpoint file should be named as model_<split>.pth,
+and the data for that split should be in <data_path>/<split>/ (containing train.csv, val.csv, test.csv).
 
 Options:
   --result_dir PATH       Directory to store results (required)
-  --checkpoint_dir PATH   Path to checkpoint directory (required)
-  --data_path PATH        Path to dataset directory (required)
+  --checkpoint_dir PATH   Path to directory containing model_*.pth checkpoint files (required)
+  --data_path PATH        Path to parent directory containing split subfolders (required)
   --batch_size INT        Batch size for inference (default: 128)
   --device INT            Device ID (-1 for CPU) (default: -1)
   --use_pretrain          Use pretrained condition encoder (flag)
   --help                  Show this help message
 
 Examples:
-  $0 --result_dir ./results --checkpoint_dir ./checkpoints --data_path ./data
-  $0 --result_dir ./results --checkpoint_dir ./checkpoints --data_path ./data --use_pretrain --batch_size 64
+  $0 --result_dir ./results --checkpoint_dir ./checkpoints --data_path ./data/cv_folds
+  $0 --result_dir ./results --checkpoint_dir ./checkpoints --data_path ./data --use_pretrain
 EOF
     exit 1
 }
@@ -93,9 +95,7 @@ if $use_pretrain; then
     temp_config="$result_dir/temp_condition_config.json"
     cp "$pretrain_config_src" "$temp_config"
     # 替换 "condition_config/masking.pth" 为 "script_dir/condition_config/masking.pth"
-    # 注意：使用 sed 处理 JSON 中的路径，需要转义 /
     masking_path="$script_dir/condition_config/masking.pth"
-    # 将原始字符串中的 / 转义为 \/ 以便在 sed 中使用
     original_pattern="condition_config/masking.pth"
     escaped_original=$(echo "$original_pattern" | sed 's/\//\\\//g')
     escaped_masking=$(echo "$masking_path" | sed 's/\//\\\//g')
@@ -113,17 +113,18 @@ fi
 
 echo "Using condition config: $condition_config_path"
 
-# 查找 checkpoint_dir 下所有包含 model.pth 的子文件夹
-checkpoint_folders=()
-while IFS= read -r -d '' dir; do
-    if [[ -f "$dir/model.pth" ]]; then
-        folder_name=$(basename "$dir")
-        checkpoint_folders+=("$folder_name")
+# 查找 checkpoint_dir 下所有 model_*.pth 文件
+checkpoint_files=()
+while IFS= read -r -d '' file; do
+    filename=$(basename "$file")
+    # 只匹配以 model_ 开头、.pth 结尾的文件
+    if [[ "$filename" == model_*.pth ]]; then
+        checkpoint_files+=("$filename")
     fi
-done < <(find "$checkpoint_dir" -mindepth 1 -maxdepth 1 -type d -print0)
+done < <(find "$checkpoint_dir" -maxdepth 1 -name "model_*.pth" -type f -print0)
 
-if [[ ${#checkpoint_folders[@]} -eq 0 ]]; then
-    echo "Error: No subdirectories with model.pth found in $checkpoint_dir"
+if [[ ${#checkpoint_files[@]} -eq 0 ]]; then
+    echo "Error: No model_*.pth files found in $checkpoint_dir"
     exit 1
 fi
 
@@ -132,19 +133,25 @@ successful=()
 failed=()
 declare -A mae_map rmse_map r2_map
 
-# 遍历每个 checkpoint 子文件夹
-for x in "${checkpoint_folders[@]}"; do
+# 遍历每个 checkpoint 文件
+for filename in "${checkpoint_files[@]}"; do
+    # 从文件名中提取 split 名称（去掉 model_ 前缀和 .pth 后缀）
+    # 例如 model_fold1.pth -> fold1
+    split="${filename#model_}"
+    split="${split%.pth}"
+
+    echo "Processing split $split using checkpoint $filename ..."
+
     # 检查 data_path 下是否存在同名子文件夹
-    data_subdir="$data_path/$x"
+    data_subdir="$data_path/$split"
     if [[ ! -d "$data_subdir" ]]; then
-        echo "Warning: Data subdirectory $data_subdir not found, skipping $x"
+        echo "Warning: Data subdirectory $data_subdir not found for split $split, skipping."
         continue
     fi
 
-    echo "Processing $x ..."
-    output_file="$result_dir/${x}.json"
-    checkpoint_file="$checkpoint_dir/$x/model.pth"
-    log_file="$result_dir/${x}.log"
+    output_file="$result_dir/${split}.json"
+    checkpoint_file="$checkpoint_dir/$filename"
+    log_file="$result_dir/${split}.log"
 
     # 运行推理脚本
     set +e  # 暂时关闭 exit on error
@@ -154,33 +161,24 @@ for x in "${checkpoint_folders[@]}"; do
         --device "$device" \
         --condition_config "$condition_config_path" \
         --output "$output_file" \
-        --dim 128 \
-        --n_layer 3 \
-        --num_w 4 \
-        --negative_slope 0.2 \
-        --local_heads 4 \
         --checkpoint "$checkpoint_file" > "$log_file" 2>&1
     exit_code=$?
     set -e  # 重新启用 exit on error
 
     if [[ $exit_code -ne 0 ]]; then
-        echo "Error: Failed to run inference for $x"
-        failed+=("$x")
+        echo "Error: Failed to run inference for split $split"
+        failed+=("$split")
         continue
     fi
 
     # 从日志中提取 MAE, RMSE, R2
-    # 期望输出格式：
-    # MAE: xxx
-    # RMSE: xxx
-    # R2: xxx
     mae_line=$(grep -E '^MAE:' "$log_file" | tail -n1)
     rmse_line=$(grep -E '^RMSE:' "$log_file" | tail -n1)
     r2_line=$(grep -E '^R2:' "$log_file" | tail -n1)
 
     if [[ -z "$mae_line" || -z "$rmse_line" || -z "$r2_line" ]]; then
-        echo "Warning: Could not parse metrics from log for $x"
-        failed+=("$x")
+        echo "Warning: Could not parse metrics from log for split $split"
+        failed+=("$split")
         continue
     fi
 
@@ -188,12 +186,12 @@ for x in "${checkpoint_folders[@]}"; do
     rmse=$(echo "$rmse_line" | awk '{print $2}')
     r2=$(echo "$r2_line" | awk '{print $2}')
 
-    # 存储结果
-    mae_map["$x"]=$mae
-    rmse_map["$x"]=$rmse
-    r2_map["$x"]=$r2
-    successful+=("$x")
-    echo "Success for $x: MAE=$mae, RMSE=$rmse, R2=$r2"
+    # 存储结果，键使用 split 名称
+    mae_map["$split"]=$mae
+    rmse_map["$split"]=$rmse
+    r2_map["$split"]=$r2
+    successful+=("$split")
+    echo "Success for split $split: MAE=$mae, RMSE=$rmse, R2=$r2"
 done
 
 # 总结
@@ -204,7 +202,7 @@ fi
 
 # 如果有失败项
 if [[ ${#failed[@]} -gt 0 ]]; then
-    echo "Errors occur when inferencing using these checkpoint: ${failed[*]}"
+    echo "下面这些 split 运行时出错： ${failed[*]}"
 fi
 
 # 如果有成功项，计算统计并制表
@@ -213,10 +211,10 @@ if [[ ${#successful[@]} -gt 0 ]]; then
     mae_values=()
     rmse_values=()
     r2_values=()
-    for x in "${successful[@]}"; do
-        mae_values+=("${mae_map[$x]}")
-        rmse_values+=("${rmse_map[$x]}")
-        r2_values+=("${r2_map[$x]}")
+    for split in "${successful[@]}"; do
+        mae_values+=("${mae_map[$split]}")
+        rmse_values+=("${rmse_map[$split]}")
+        r2_values+=("${r2_map[$split]}")
     done
 
     # 计算均值（使用 awk）
@@ -237,10 +235,10 @@ if [[ ${#successful[@]} -gt 0 ]]; then
     r2_mean=$(compute_mean "${r2_values[@]}")
 
     # 计算列宽
-    # 第一列：max(6, 最长x名称长度+2)
+    # 第一列：max(6, 最长 split 名称长度+2)
     max_name_len=6
-    for x in "${successful[@]}"; do
-        len=${#x}
+    for split in "${successful[@]}"; do
+        len=${#split}
         if (( len+2 > max_name_len )); then
             max_name_len=$((len+2))
         fi
@@ -251,13 +249,13 @@ if [[ ${#successful[@]} -gt 0 ]]; then
     all_mae_strs=()
     all_rmse_strs=()
     all_r2_strs=()
-    for x in "${successful[@]}"; do
-        mae_str["$x"]=$(printf "%.4f" "${mae_map[$x]}")
-        rmse_str["$x"]=$(printf "%.4f" "${rmse_map[$x]}")
-        r2_str["$x"]=$(printf "%.4f" "${r2_map[$x]}")
-        all_mae_strs+=("${mae_str[$x]}")
-        all_rmse_strs+=("${rmse_str[$x]}")
-        all_r2_strs+=("${r2_str[$x]}")
+    for split in "${successful[@]}"; do
+        mae_str["$split"]=$(printf "%.4f" "${mae_map[$split]}")
+        rmse_str["$split"]=$(printf "%.4f" "${rmse_map[$split]}")
+        r2_str["$split"]=$(printf "%.4f" "${r2_map[$split]}")
+        all_mae_strs+=("${mae_str[$split]}")
+        all_rmse_strs+=("${rmse_str[$split]}")
+        all_r2_strs+=("${r2_str[$split]}")
     done
 
     # 计算后面三列的宽度
@@ -284,7 +282,7 @@ if [[ ${#successful[@]} -gt 0 ]]; then
 
     echo ""
     echo "Results:"
-    # 分隔线
+    # 上边框
     printf "+-%s-+-%s-+-%s-+-%s-+\n" \
         "$(printf '%*s' "$col1_width" '' | tr ' ' '-')" \
         "$(printf '%*s' "$col2_width" '' | tr ' ' '-')" \
@@ -295,7 +293,7 @@ if [[ ${#successful[@]} -gt 0 ]]; then
     printf " %*s |" "$col2_width" "MAE"
     printf " %*s |" "$col3_width" "RMSE"
     printf " %*s |\n" "$col4_width" "R2"
-    # 分隔线
+    # 表头下边框
     printf "+-%s-+-%s-+-%s-+-%s-+\n" \
         "$(printf '%*s' "$col1_width" '' | tr ' ' '-')" \
         "$(printf '%*s' "$col2_width" '' | tr ' ' '-')" \
@@ -303,14 +301,14 @@ if [[ ${#successful[@]} -gt 0 ]]; then
         "$(printf '%*s' "$col4_width" '' | tr ' ' '-')"
 
     # 数据行
-    for x in "${successful[@]}"; do
-        printf "| %*s |" "$col1_width" "$x"
-        printf " %*s |" "$col2_width" "${mae_str[$x]}"
-        printf " %*s |" "$col3_width" "${rmse_str[$x]}"
-        printf " %*s |\n" "$col4_width" "${r2_str[$x]}"
+    for split in "${successful[@]}"; do
+        printf "| %*s |" "$col1_width" "$split"
+        printf " %*s |" "$col2_width" "${mae_str[$split]}"
+        printf " %*s |" "$col3_width" "${rmse_str[$split]}"
+        printf " %*s |\n" "$col4_width" "${r2_str[$split]}"
     done
 
-    # 分隔线
+    # 数据行和统计行之间的分割线
     printf "+-%s-+-%s-+-%s-+-%s-+\n" \
         "$(printf '%*s' "$col1_width" '' | tr ' ' '-')" \
         "$(printf '%*s' "$col2_width" '' | tr ' ' '-')" \
@@ -333,7 +331,8 @@ if [[ ${#successful[@]} -gt 0 ]]; then
         printf " %*s |" "$col3_width" "$rmse_std"
         printf " %*s |\n" "$col4_width" "$r2_std"
     fi
-    # 分隔线
+
+    # 下边框
     printf "+-%s-+-%s-+-%s-+-%s-+\n" \
         "$(printf '%*s' "$col1_width" '' | tr ' ' '-')" \
         "$(printf '%*s' "$col2_width" '' | tr ' ' '-')" \
