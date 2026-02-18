@@ -143,6 +143,8 @@ bash eval_sh/eval_thiol_addition_iid_use_provided_condition.sh \
 
 Here, `checkpoint_path` refers to the folder that stores all checkpoints, corresponding to `checkpoints/denmark/iid_with_pretrained_condition_encoder` or `checkpoints/denmark/iid_without_pretrained_condition_encoder` in the files shared via Google Drive. `data_path` refers to the directory that stores the IID data partitions, corresponding to `Data/denmark/iid` in the files shared via Google Drive.
 
+For the OOD data splits, use the script below.
+
 
 
 ## Training
