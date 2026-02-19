@@ -98,6 +98,94 @@ The original data of these two datasets needs to be processed with rxnmapper to 
 
 ## Training & Inference
 
+### Reaction Condition Recommendation
+
+#### USPTO-Condition
+
+To reproduce the **training**, use the following command for single-card training:
+
+```shell
+python train_uspto_condition.py \
+  --data_path $data_path \
+  --mapper_path $mapper_path
+```
+
+or the following command for single-machine multi-card training:
+
+```shell
+python train_uspto_condition_ddp.py \
+  --data_path $data_path \
+  --mapper_path $mapper_path \
+  --num_gpus $n_gpus \
+  --port $port
+```
+
+`$data_path` is the path to the processed `csv` file, and `$mapper_path` is the path to the reagent-index lookup table obtained during preprocessing.  The default parameters provided in the single-machine multi-card training code are the parameters used to train the open-source weights. You can also run the following command to view all the parameters accepted by the script and make corresponding adjustments.
+
+```shell
+python train_uspto_condition.py -h
+python train_uspto_condition_ddp.py -h
+```
+
+To **inference** the prediction using a certain checkpoint, use the following command, where `$data_path` is the path of the processed dataset, `$checkpoint` is the path of checkpoint, `$token_ckpt` is the path of the corresponding `pkl` file for the reagent-index lookup table and `$output_path` is the output file path. 
+
+```shell
+python inference_condition.py \
+  --data_path $data_path \
+  --token_ckpt $token_ckpt \
+  --checkpoint $checkpoint \
+  --output_file $output_path
+```
+
+The provided default values of args are those of the provided checkpoints. To adapt to different structures and hardware, you may need to modify the other parameters. Use the following commands to view the relevant parameters and their meanings.
+
+```shell
+python inference_condition.py -h
+```
+
+To evaluate the results, use the following command, where `$input_file` is path of the `json` file obtained via the inference scripts and `$beam_size` is the beam size for beam search during the inference.
+
+```shell
+# evaluate overall top-k accuracy
+python evaluate_condition.py \
+  --file $input_file \
+  --beam $beam_size
+# evaluate the top-k accruacy on catalyst, solvents and reagents
+python evaluate_pred_split.py \
+  --file $input_file \
+  --beam $beam_size
+```
+
+#### USPTO-500MT
+
+To reproduce the **training**, use the following command, where the `$data_path` here represents the folder containing the processed data.
+
+```shell
+python train_500mt_gen.py --data_path $data_path 
+```
+
+The default parameters provided in the training code are the parameters used to train the open-source weights. You can also run the following command to view all the parameters accepted by the script and make corresponding adjustments. 
+
+```shell
+python train_500mt_gen.py -h
+```
+
+To **inference** the prediction using a certain checkpoint, use the following command, where `$data_path` is the path of the processed dataset, `$checkpoint` is the path of checkpoint, `$token_ckpt` is the path of the corresponding `pkl` file for the smiles tokenizer and `$output_path` is the output file path. 
+
+```shell
+python inference_uspto_500mt.py \
+  --data_path $data_path \
+  --token_ckpt $token_ckpt \
+  --checkpoint $checkpoint \
+  --output_file $output_path
+```
+
+To **evaluate** the results, use the following command, where `$input_file` is path of the `json` file obtained via the inference scripts and `$beam` is the beam size for beam search during the inference.
+
+```shell
+python evaluate_500mt.py --file $input_file --beam $beam
+```
+
 ### Regression Tasks
 
 #### Buchwald-Hartwig Cross-coupling Reaction
@@ -242,72 +330,4 @@ For the OOD data splits, use the script below.
 #  --device INT            Device ID (-1 for CPU) (default: -1)
 #  --use_pretrain          Use pretrained condition encoder (flag)
 #  --help                  Show this help message
-```
-
-## Training
-
-### USPTO-Condition
-
-To reproduce the training, use the following command for single-card training:
-
-```shell
-python train_uspto_condition.py --data_path $data_path --mapper_path $mapper_path
-```
-
-or the following command for single-machine multi-card training:
-
-```shell
-python train_uspto_condition_ddp.py --data_path $data_path --mapper_path $mapper_path
-```
-
-`$data_path` is the path to the processed `csv` file, and `$mapper_path` is the path to the reagent-index lookup table obtained during preprocessing.  The default parameters provided in the single-machine multi-card training code are the parameters used to train the open-source weights. You can also train your own version. Use the following commands to view all parameters and their meanings:
-
-```shell
-python train_uspto_condition.py -h
-python train_uspto_condition_ddp.py -h
-```
-
-### USPTO-500MT
-
-To reproduce the training, use the following command, where the `$data_path` here represents the folder containing the processed data.
-
-```shell
-python train_500mt_gen.py --data_path $data_path 
-```
-
-## Inference and Evaluation
-
-### USPTO-Condition
-
-To inference the prediction using a certain checkpoint, use the following command, where `$data_path` is the path of the processed dataset, `$checkpoint` is the path of checkpoint, `$token_ckpt` is the path of the corresponding `pkl` file for the reagent-index lookup table and `$output_path` is the output file path. 
-
-```shell
-python inference_condition.py --data_path $data_path --token_ckpt $token_ckpt --checkpoint $checkpoint --output_file $output_path
-```
-
-The provided default values of args are those of the provided checkpoints. To adapt to different structures and hardware, you may need to modify the other parameters. Use the following commands to view the relevant parameters and their meanings.
-
-```shell
-python inference_condition.py -h
-```
-
-To evaluate the results, use the following command, where `$input_file` is path of the `json` file obtained via the inference scripts and `$beam` is the beam size for beam search during the inference.
-
-```shell
-python evaluate_condition.py --file $input_file --beam $beam
-python evaluate_pred_split.py --file $input_file --beam $beam
-```
-
-### USPTO-500MT
-
-To inference the prediction using a certain checkpoint, use the following command, where `$data_path` is the path of the processed dataset, `$checkpoint` is the path of checkpoint, `$token_ckpt` is the path of the corresponding `pkl` file for the smiles tokenizer and `$output_path` is the output file path. 
-
-```shell
-python inference_uspto_500mt.py --data_path $data_path --token_ckpt $token_ckpt --checkpoint $checkpoint --output_file $output_path
-```
-
-To evaluate the results, use the following command, where `$input_file` is path of the `json` file obtained via the inference scripts and `$beam` is the beam size for beam search during the inference.
-
-```shell
-python evaluate_500mt.py --file $input_file --beam $beam
 ```
