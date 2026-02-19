@@ -8,28 +8,35 @@ use_pretrain=false
 result_dir=""
 checkpoint_dir=""
 data_path=""
+dataset=""  # 新增数据集参数
 
 # 用法函数
 usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
-This script performs inference and evaluation on multiple data splits of the chiral phosphoric acid-catalyzed thiol 
-addition dataset using corresponding checkpoint files. Each checkpoint file should be named as model_<split>.pth,
-and the data for that split should be in <data_path>/<split>/ (containing train.csv, val.csv, test.csv).
+This script performs inference and evaluation on multiple data splits using corresponding checkpoint files.
+It supports three datasets:
+  - dm:  chiral phosphoric acid-catalyzed thiol addition dataset
+  - bh:  Buchwald-Hartwig cross-coupling reaction dataset
+  - hx:  radical C–H functionalization dataset
+
+For each split, a checkpoint file named model_<split>.pth is expected in --checkpoint_dir,
+and the corresponding data should be in <data_path>/<split>/ (containing train.csv, val.csv, test.csv).
 
 Options:
+  --dataset {dm,bh,hx}    Dataset to evaluate (required)
   --result_dir PATH       Directory to store results (required)
   --checkpoint_dir PATH   Path to directory containing model_*.pth checkpoint files (required)
   --data_path PATH        Path to parent directory containing split subfolders (required)
   --batch_size INT        Batch size for inference (default: 128)
   --device INT            Device ID (-1 for CPU) (default: -1)
-  --use_pretrain          Use pretrained condition encoder (flag)
+  --use_pretrain          Use pretrained condition encoder (flag; ignored for hx dataset)
   --help                  Show this help message
 
 Examples:
-  $0 --result_dir ./results --checkpoint_dir ./checkpoints --data_path ./data/cv_folds
-  $0 --result_dir ./results --checkpoint_dir ./checkpoints --data_path ./data --use_pretrain
+  $0 --dataset dm --result_dir ./results --checkpoint_dir ./checkpoints --data_path ./data/cv_folds
+  $0 --dataset bh --result_dir ./results --checkpoint_dir ./checkpoints --data_path ./data --use_pretrain
 EOF
     exit 1
 }
@@ -37,6 +44,10 @@ EOF
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --dataset)
+            dataset="$2"
+            shift 2
+            ;;
         --result_dir)
             result_dir="$2"
             shift 2
@@ -72,9 +83,15 @@ while [[ $# -gt 0 ]]; do
 done
 
 # 检查必需参数
-if [[ -z "$result_dir" ]] || [[ -z "$checkpoint_dir" ]] || [[ -z "$data_path" ]]; then
-    echo "Error: --result_dir, --checkpoint_dir, and --data_path are required."
+if [[ -z "$dataset" ]] || [[ -z "$result_dir" ]] || [[ -z "$checkpoint_dir" ]] || [[ -z "$data_path" ]]; then
+    echo "Error: --dataset, --result_dir, --checkpoint_dir, and --data_path are required."
     usage
+fi
+
+# 检查 dataset 是否合法
+if [[ "$dataset" != "dm" && "$dataset" != "bh" && "$dataset" != "hx" ]]; then
+    echo "Error: --dataset must be one of: dm, bh, hx"
+    exit 1
 fi
 
 # 获取脚本的绝对路径并确定 script_dir (脚本所在目录的父目录)
@@ -84,34 +101,56 @@ script_dir=$(dirname "$(dirname "$script_path")")  # 脚本所在目录的父目
 # 创建结果目录（如果不存在）
 mkdir -p "$result_dir"
 
-# 确定 condition_config 路径
-if $use_pretrain; then
-    # 预训练模式：复制配置文件并替换 masking.pth 路径
-    pretrain_config_src="$script_dir/condition_config/dm/config_dm_pretrain.json"
-    if [[ ! -f "$pretrain_config_src" ]]; then
-        echo "Error: Pretrain config not found at $pretrain_config_src"
-        exit 1
-    fi
-    temp_config="$result_dir/temp_condition_config.json"
-    cp "$pretrain_config_src" "$temp_config"
-    # 替换 "condition_config/masking.pth" 为 "script_dir/condition_config/masking.pth"
-    masking_path="$script_dir/condition_config/masking.pth"
-    original_pattern="condition_config/masking.pth"
-    escaped_original=$(echo "$original_pattern" | sed 's/\//\\\//g')
-    escaped_masking=$(echo "$masking_path" | sed 's/\//\\\//g')
-    sed -i "s/$escaped_original/$escaped_masking/g" "$temp_config"
-    condition_config_path="$temp_config"
-else
-    # 非预训练模式：直接使用无预训练的配置文件
-    no_pretrain_config="$script_dir/condition_config/dm/config_dm_no_pretrain_gat.json"
-    if [[ ! -f "$no_pretrain_config" ]]; then
-        echo "Error: No-pretrain config not found at $no_pretrain_config"
-        exit 1
-    fi
-    condition_config_path="$no_pretrain_config"
-fi
+# 根据 dataset 设置配置文件路径（相对路径）
+case $dataset in
+    dm)
+        pretrain_config_rel="condition_config/dm/config_dm_pretrain.json"
+        no_pretrain_config_rel="condition_config/dm/config_dm_no_pretrain_gat.json"
+        ;;
+    bh)
+        pretrain_config_rel="condition_config/cn/cn_config_pretrain_sep.json"
+        no_pretrain_config_rel="condition_config/cn/config_cn_no_pretrain_sep_gat.json"
+        ;;
+    hx)
+        # hx 数据集不使用 condition_config
+        pretrain_config_rel=""
+        no_pretrain_config_rel=""
+        ;;
+esac
 
-echo "Using condition config: $condition_config_path"
+# 确定是否使用 condition_config 及其路径
+use_condition_config=true
+condition_config_path=""
+
+if [[ "$dataset" == "hx" ]]; then
+    use_condition_config=false
+    echo "Dataset hx: condition_config is not used."
+else
+    if $use_pretrain; then
+        pretrain_config_src="$script_dir/$pretrain_config_rel"
+        if [[ ! -f "$pretrain_config_src" ]]; then
+            echo "Error: Pretrain config not found at $pretrain_config_src"
+            exit 1
+        fi
+        temp_config="$result_dir/temp_condition_config.json"
+        cp "$pretrain_config_src" "$temp_config"
+        # 替换 "condition_config/masking.pth" 为 "$script_dir/condition_config/masking.pth"
+        masking_path="$script_dir/condition_config/masking.pth"
+        original_pattern="condition_config/masking.pth"
+        escaped_original=$(echo "$original_pattern" | sed 's/\//\\\//g')
+        escaped_masking=$(echo "$masking_path" | sed 's/\//\\\//g')
+        sed -i "s/$escaped_original/$escaped_masking/g" "$temp_config"
+        condition_config_path="$temp_config"
+    else
+        no_pretrain_config="$script_dir/$no_pretrain_config_rel"
+        if [[ ! -f "$no_pretrain_config" ]]; then
+            echo "Error: No-pretrain config not found at $no_pretrain_config"
+            exit 1
+        fi
+        condition_config_path="$no_pretrain_config"
+    fi
+    echo "Using condition config: $condition_config_path"
+fi
 
 # 查找 checkpoint_dir 下所有 model_*.pth 文件
 checkpoint_files=()
@@ -128,6 +167,22 @@ if [[ ${#checkpoint_files[@]} -eq 0 ]]; then
     exit 1
 fi
 
+# 根据 dataset 设置 Python 脚本和特定参数
+case $dataset in
+    dm)
+        python_script="predict_dm.py"
+        n_layer=3
+        ;;
+    bh)
+        python_script="predict_cn.py"
+        n_layer=3
+        ;;
+    hx)
+        python_script="predict_hx.py"
+        n_layer=5
+        ;;
+esac
+
 # 初始化成功和失败列表
 successful=()
 failed=()
@@ -136,7 +191,6 @@ declare -A mae_map rmse_map r2_map
 # 遍历每个 checkpoint 文件
 for filename in "${checkpoint_files[@]}"; do
     # 从文件名中提取 split 名称（去掉 model_ 前缀和 .pth 后缀）
-    # 例如 model_fold1.pth -> fold1
     split="${filename#model_}"
     split="${split%.pth}"
 
@@ -153,15 +207,29 @@ for filename in "${checkpoint_files[@]}"; do
     checkpoint_file="$checkpoint_dir/$filename"
     log_file="$result_dir/${split}.log"
 
+    # 构建命令数组
+    cmd=(python "$script_dir/$python_script"
+        --data_path "$data_subdir"
+        --bs "$batch_size"
+        --device "$device"
+    )
+
+    if $use_condition_config; then
+        cmd+=(--condition_config "$condition_config_path")
+    fi
+
+    cmd+=(--output "$output_file"
+        --dim 128
+        --n_layer "$n_layer"
+        --local_head 4
+        --num_worker 4
+        --negative 0.2
+        --checkpoint "$checkpoint_file"
+    )
+
     # 运行推理脚本
     set +e  # 暂时关闭 exit on error
-    python "$script_dir/predict_dm.py" \
-        --data_path "$data_subdir" \
-        --bs "$batch_size" \
-        --device "$device" \
-        --condition_config "$condition_config_path" \
-        --output "$output_file" \
-        --checkpoint "$checkpoint_file" > "$log_file" 2>&1
+    "${cmd[@]}" > "$log_file" 2>&1
     exit_code=$?
     set -e  # 重新启用 exit on error
 
@@ -202,7 +270,7 @@ fi
 
 # 如果有失败项
 if [[ ${#failed[@]} -gt 0 ]]; then
-    echo "下面这些 split 运行时出错： ${failed[*]}"
+    echo "Errors occur when evaluating the following splits: ${failed[*]}"
 fi
 
 # 如果有成功项，计算统计并制表
@@ -323,9 +391,9 @@ if [[ ${#successful[@]} -gt 0 ]]; then
 
     # 如果有至少两个成功项，计算标准差
     if [[ ${#successful[@]} -gt 1 ]]; then
-        mae_std=$(compute_std "${mae_mean}" "${mae_values[@]}")
-        rmse_std=$(compute_std "${rmse_mean}" "${rmse_values[@]}")
-        r2_std=$(compute_std "${r2_mean}" "${r2_values[@]}")
+        mae_std=$(compute_std "$mae_mean" "${mae_values[@]}")
+        rmse_std=$(compute_std "$rmse_mean" "${rmse_values[@]}")
+        r2_std=$(compute_std "$r2_mean" "${r2_values[@]}")
         printf "| %*s |" "$col1_width" "std"
         printf " %*s |" "$col2_width" "$mae_std"
         printf " %*s |" "$col3_width" "$rmse_std"
@@ -340,8 +408,8 @@ if [[ ${#successful[@]} -gt 0 ]]; then
         "$(printf '%*s' "$col4_width" '' | tr ' ' '-')"
 fi
 
-# 清理临时文件
-if $use_pretrain && [[ -f "$temp_config" ]]; then
+# 清理临时文件（仅当使用 condition_config 且为 pretrain 模式时）
+if $use_condition_config && $use_pretrain && [[ -f "$temp_config" ]]; then
     rm "$temp_config"
     echo "Cleaned up temporary config: $temp_config"
 fi

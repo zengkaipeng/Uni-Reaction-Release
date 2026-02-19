@@ -53,7 +53,12 @@ cd data_process_script/uspto_condition
 Then, you need to execute the following script to add atom-mapping. Here, `$num_gpus` represents the number of GPUs required to add atom-mapping, `$batch_size` represents the batch size for rxnmapper inference, and `$share_size` represents the coarse-grained chunk size for the dataset. The script's execution logic is to divide the dataset into several chunks, write them into temporary files, and call another script to perform inference for different chunks on different devices. `$input_file` is the path to the `csv` file containing the processed data from the Parrot project, and `$output_file` is the path where the atom-mapped dataset will be output.
 
 ```Shell
-python add_am_uspto_condition.py --num_gpus $num_gpus --batch_size $batch_size --share_size $share_size --input_file $input_file --output_file $output_file
+python add_am_uspto_condition.py \
+  --num_gpus $num_gpus \
+  --batch_size $batch_size \
+  --share_size $share_size \
+  --input_file $input_file \
+  --output_file $output_file
 ```
 
 Next, we also need to canonicalize the labels of the dataset and generate a reagent-index lookup table. `$input_file` is the path to the atom-mapped data, and `$vocab_path` is the path to the lookup table. If left blank, we will store the lookup table in `label_to_idx.json` in the same directory as the input file by default.
@@ -81,7 +86,9 @@ Then you can obtain the processed dataset from the `data_process_scripts/uspto_5
 Since all the reactions in this dataset follow the same reaction template, we use a rule-based approach to generate atom-mapping for the reactions. We first obtain the raw data from [YieldBert](https://github.com/rxn4chemistry/rxn_yields/tree/master/data/Buchwald-Hartwig). Then, run the following command to get the data. Here, `$input_file` represents the path to the Excel file containing the raw data, and `$output_folder` is used to store the processed dataset. The script will output 10 random splits and four out-of-distribution (OOD) splits, which are aligned with the [YieldBert](https://github.com/rxn4chemistry/rxn_yields/tree/master/data/Buchwald-Hartwig) and other baselines.
 
 ```shell
-python data_process_script/process_cn_yield.py --input_file $input_file --output_dir $output_folder
+python data_process_script/process_cn_yield.py \
+  --input_file $input_file \
+  --output_dir $output_folder
 ```
 
 Of course, we also provide preprocessed datasets (see **Data, Checkpoints and Results**).
@@ -91,61 +98,151 @@ The original data of these two datasets needs to be processed with rxnmapper to 
 
 ## Training & Inference
 
-### chiral phosphoric acid-catalyzed thiol addition
+### Regression Tasks
 
-To reproduce the **training**, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config. We use `condition_config/dm/config_dm_no_pretrain_gat.json` for the version without pretraining and `condition_config/dm/config_dm_pretrain.json` for the version with a pretrained condition encoder.
+#### Buchwald-Hartwig Cross-coupling Reaction
 
+To reproduce the **training**, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config of condition encoder. We use `condition_config/cn/config_cn_no_pretrain_sep_gat.json` for the version without pretraining and `condition_config/cn/cn_config_pretrain_sep.json` for the pretrained version.
 ```shell
-python train_dm.py --data_path $data_path --condition_config condition_config/dm/config_dm_no_pretrain_gat.json
+python train_cn_full.py \
+  --data_path $data_path \
+  --base_log $base_log \
+  --condition_config $condition_config 
 ```
 
-During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits. You can run the following command to view all the parameters accepted by the script and make corresponding adjustments.
+During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`, where the checkpoint named `model.pth` and the training arguments named `log.json` are placed. To prevent confusion, you might need to set different `base_log` directories for different data splits. The default parameters provided in the code are those used to train the open-source weights, **except for the non-pretrained version under OOD splits.**   You can also run the following command to view all the parameters accepted by the script and make corresponding adjustments.
+
+```shell
+python train_cn_full.py --help
+```
+
+To **inference and evaluate** the result, use the following command, where `$data_path` is the path of a specific data split of dataset need to evaluate, `$condition_config`  is the same as the definition in the training script, `$checkpoint` is the path to the checkpoint and `$output_path` is the path to store the prediction and ground truth. 
+
+```shell
+python predict_cn.py \
+  --data_path $data_path \
+  --condition_config $condition_config \
+  --checkpoint $checkpoint \
+  --output $output_path 
+```
+
+**To reproduce experiments on the four OOD splits with a non-pretrained condition encoder, add ** `--dim 64 --condition_config condition_config/cn/config_cn_no_pretrain_sep_gat_64_8_3.json` **in both training and inference commands.**
+
+```shell
+# training
+python train_cn_full.py \
+  --data_path $data_path \
+  --base_log $base_log \
+  --condition_config condition_config/cn/config_cn_no_pretrain_sep_gat_64_8_3.json \
+  --dim 64
+# inference
+python predict_cn.py \
+  --data_path $data_path \
+  --condition_config condition_config/cn/config_cn_no_pretrain_sep_gat_64_8_3.json \
+  --checkpoint $checkpoint \
+  --output $output_path \
+  --dim 64
+```
+
+#### Radical C–H Functionalization
+
+To reproduce the **training**, use the following command, where `$data_path` is the path to a specific data split of dataset.
+
+```shell
+python train_hx.py \
+  --data_path $data_path \
+  --base_log $base_log 
+```
+
+During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits. You can also run the following command to view all the parameters accepted by the script and make corresponding adjustments.
+
+```shell
+python train_hx.py --help
+```
+
+To **inference and evaluate** the result, use the following command, where `$data_path` is the path of the specific data split of dataset need to evaluate and `$output_path` is the path to store the prediction and ground truth. 
+
+```shell
+python predict_hx.py --data_path $data_path --checkpoint $checkpoint --output $output_path
+```
+
+#### Chiral Phosphoric Acid-Catalyzed Thiol Addition
+
+To reproduce the **training**, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config of condition encoder. We use `condition_config/dm/config_dm_no_pretrain_gat.json` for the version without pretraining and `condition_config/dm/config_dm_pretrain.json` for the pretrained version.
+
+```shell
+python train_dm.py \
+  --data_path $data_path \
+  --condition_config $condition_config \
+  --base_log $base_log
+```
+
+During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits. The default parameters provided in the code are those used to train the open-source weights. You can also run the following command to view all the parameters accepted by the script and make corresponding adjustments.
 
 ```shell
 python train_dm.py --help
 ```
 
-To **inference and evaluate** the result, use the following command, where `$data_path` is the path of the specific data split of dataset need to evaluate, `$condition_config` is the path to the condition encoder config, `$checkpoint` is the path to the checkpoint and `$output_path` is the path to store the prediction and ground truth. 
+To **inference and evaluate** the result, use the following command, where `$data_path` is the path of the specific data split of dataset need to evaluate, `$condition_config`  is the same as the definition in the training script, `$checkpoint` is the path to the checkpoint and `$output_path` is the path to store the prediction and ground truth. 
 
 ```shell
-python predict_dm.py --data_path $data_path --condition_config $condition_config --checkpoint $checkpoint --output $output_path 
+python predict_dm.py \
+  --data_path $data_path \
+  --condition_config $condition_config \
+  --checkpoint $checkpoint \
+  --output $output_path 
 ```
 
-`condition_config/dm/cn_config_pretrain_sep.json` and `condition_config/dm/config_cn_no_pretrain_sep_gat.json` is for the version with pretrained/non-pretrained condition encoder for Buchwald-Hartwig cross-coupling reaction dataset, respectively. 
+#### Fast Evaluation Using the Provided Checkpoints
 
 If you want to directly use the checkpoint we provide for inference and view the results, please use the following bash scripts. For IID data partitioning, use the script below.
 
 ```shell
-# bash eval_sh/eval_thiol_addition_iid_use_provided_condition.sh --help
-# This script performs inference and evaluation on the hiral phosphoric acid-catalyzed thiol addition dataset.
+# Usage: bash eval_sh/eval_iid_regression_use_provided_ckpt.sh [OPTIONS]
+
+# This script performs inference and evaluation on multiple data splits using corresponding checkpoint files.
+# It supports three datasets:
+#   - dm:  chiral phosphoric acid-catalyzed thiol addition dataset
+#   - bh:  Buchwald-Hartwig cross-coupling reaction dataset
+#   - hx:  radical C–H functionalization dataset
+
+# For each split, a checkpoint file named model_<split>.pth is expected in --checkpoint_dir,
+# and the corresponding data should be in <data_path>/<split>/ (containing train.csv, val.csv, test.csv).
+
 # Options:
+#   --dataset {dm,bh,hx}    Dataset to evaluate (required)
 #   --result_dir PATH       Directory to store results (required)
-#   --checkpoint_dir PATH   Path to checkpoint directory (required)
-#   --data_path PATH        Path to dataset directory (required)
+#   --checkpoint_dir PATH   Path to directory containing model_*.pth checkpoint files (required)
+#   --data_path PATH        Path to parent directory containing split subfolders (required)
 #   --batch_size INT        Batch size for inference (default: 128)
 #   --device INT            Device ID (-1 for CPU) (default: -1)
-#   --use_pretrain          Use pretrained condition encoder (flag)
+#   --use_pretrain          Use pretrained condition encoder (flag; ignored for hx dataset)
 #   --help                  Show this help message
-
-
-# for model with pretrained condition encoder
-bash eval_sh/eval_thiol_addition_iid_use_provided_condition.sh \
-   --result_dir $result_dir \
-   --checkpoint_dir $checkpoint_path \
-   --data_path $data_path --use_pretrain 
-
-# for model without pretrained condition encoder
-bash eval_sh/eval_thiol_addition_iid_use_provided_condition.sh \
-   --result_dir $result_dir \
-   --checkpoint_dir $checkpoint_path \
-   --data_path $data_path
 ```
-
-Here, `checkpoint_path` refers to the folder that stores all checkpoints, corresponding to `checkpoints/denmark/iid_with_pretrained_condition_encoder` or `checkpoints/denmark/iid_without_pretrained_condition_encoder` in the files shared via Google Drive. `data_path` refers to the directory that stores the IID data partitions, corresponding to `Data/denmark/iid` in the files shared via Google Drive.
 
 For the OOD data splits, use the script below.
 
+```shell
+# Usage: eval_sh/eval_ood_regression_use_provided_ckpt.sh [OPTIONS]
 
+# This script performs inference and evaluation on a single dataset split (with train.csv, val.csv, test.csv)
+# using multiple checkpoint files (different random seeds). It computes MAE, RMSE, R2 for each checkpoint
+# and then reports mean and standard deviation across seeds.
+
+# Supported datasets:
+#   - dm: chiral phosphoric acid-catalyzed thiol addition dataset
+#   - bh: Buchwald-Hartwig cross-coupling reaction dataset
+
+# Options:
+#  --dataset {dm,bh}       Dataset to evaluate (required)
+#  --result_dir PATH       Directory to store results (required)
+#  --checkpoint_dir PATH   Path to directory containing .pth checkpoint files (required) 
+#  --data_path PATH        Path to dataset directory containing train.csv, val.csv, test.csv (required)
+#  --batch_size INT        Batch size for inference (default: 128)
+#  --device INT            Device ID (-1 for CPU) (default: -1)
+#  --use_pretrain          Use pretrained condition encoder (flag)
+#  --help                  Show this help message
+```
 
 ## Training
 
@@ -177,30 +274,6 @@ To reproduce the training, use the following command, where the `$data_path` her
 ```shell
 python train_500mt_gen.py --data_path $data_path 
 ```
-
-### Buchwald-Hartwig cross-coupling reaction
-
-To reproduce the training, use the following command, where `$data_path` is the path to a specific data split of dataset and `$condition_config` is the path to the model config. We use `condition_config/cn/config_cn_no_pretrain_sep_gat.json` for the version without pretraining and `condition_config/cn/cn_config_pretrain_sep.json` for the version with a pretrained condition encoder.
-```shell
-python train_cn_full.py --data_path $data_path --base_log $base_log --condition_config $condition_config --condition_both
-```
-
-During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`, where the checkpoint named `model.pth` and the training arguments named `log.json` are placed. To prevent confusion, you might need to set different `base_log` directories for different data splits. The default parameters provided in the code are those used to train the open-source weights, except for the non-pretrained version under OOD splits. **To reproduce experiments on the four OOD splits with a non-pretrained condition encoder, add the `--dim 64 --condition_config condition_config/cn/config_cn_no_pretrain_sep_gat_64_8_3.json`.**
-```shell
-python train_cn_full.py --data_path $data_path --base_log $base_log --condition_config condition_config/cn/config_cn_no_pretrain_sep_gat_64_8_3.json --condition_both --dim 64
-```
-
-### radical C–H functionalization
-
-To reproduce the training, use the following command, where `$data_path` is the path to a specific data split of dataset.
-
-```shell
-python train_hx.py --data_path $data_path --base_log $base_log 
-```
-
-During the training, a logging directory named with the current timestamp will be generated in the folder `base_log`. To prevent confusion, you might need to set different `base_log` directories for different data splits.
-
-
 
 ## Inference and Evaluation
 
@@ -238,22 +311,3 @@ To evaluate the results, use the following command, where `$input_file` is path 
 ```shell
 python evaluate_500mt.py --file $input_file --beam $beam
 ```
-
-### Buchwald-Hartwig cross-coupling reaction and chiral phosphoric acid-catalyzed thiol addition
-
-To inference and evaluate the result, use the following command, where `$data_path` is the path of the specific data split of dataset need to evaluate, `$condition_config` is the path to the model config, `$checkpoint` is the path to the checkpoint and `$output_path` is the path to store the prediction and ground truth. 
-
-```shell
-python predict_cn.py/predict_dm.py --data_path $data_path --condition_config $condition_config --checkpoint $checkpoint --output $output_path --condition_both
-```
-
-`predict_cn.py` is for Buchwald-Hartwig cross-coupling reaction dataset and `predict_dm` is for chiral phosphoric acid-catalyzed thiol addition. `condition_config/cn/cn_config_pretrain_sep.json` and `condition_config/cn/config_cn_no_pretrain_sep_gat.json` is for the version with pretrained/non-pretrained condition encoder for Buchwald-Hartwig cross-coupling reaction dataset, respectively. `condition_config\dm\config_dm_pretrain.json` and `condition_config\dm\config_dm_no_pretrain_gat.json` is for the version with pretrained/non-pretrained condition encoder for chiral phosphoric acid-catalyzed thiol addition dataset, respectively.  **To perform the inference on the provided checkpoint of non-pretrained version on Buchwald-Hartwig cross-coupling reaction dataset's OOD split, add `--dim 64 --condition_config condition_config/cn/config_cn_no_pretrain_sep_gat_64_8_3.json`**
-
-### radical C–H functionalization
-
-To inference and evaluate the result, use the following command, where `$data_path` is the path of the specific data split of dataset need to evaluate, `$condition_config` is the path to the model config and `$output_path` is the path to store the prediction and ground truth. 
-
-```shell
-python predict_hx.py --data_path $data_path --checkpoint $checkpoint --output $output_path
-```
-
