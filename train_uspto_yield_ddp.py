@@ -330,12 +330,12 @@ if __name__ == '__main__':
         help='the number of local heads in attention'
     )
     parser.add_argument(
-        '--amount_class', type=int, default=-1,
+        '--amount_class', type=int, default=50,
         help='the number of class for amount embedding' +
         ' non-positive to disable the amount encoder'
     )
     parser.add_argument(
-        '--temperature_class', type=int, default=-1,
+        '--temperature_class', type=int, default=50,
         help='the number of class for temperature embedding' +
         ' non-positive to disable the temperature encoder'
     )

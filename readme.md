@@ -156,6 +156,34 @@ python evaluate_pred_split.py \
   --beam $beam_size
 ```
 
+If you want to directly use the checkpoint we provide for inference and view the results, please use the following bash scripts.
+
+```shell
+# Usage: eval_sh/eval_uspto_condition_use_provided_ckpt.sh [OPTIONS]
+
+# This script performs inference and evaluation on the USPTO-Condition dataset.
+
+# Options:
+#  --result_dir PATH       Path to the output result file (e.g., ./results/full.json) (required)
+#  --mode {regenerate,use_current}
+#                          Operation mode: 'regenerate' runs inference,
+#                          'use_current' only evaluates existing results.
+#                          (default: use_current)
+# --checkpoint_dir PATH   Path to checkpoint directory, containing model.pth and token.pkl (required if mode=regenerate)
+# --data_path PATH        Path to the csv file of dataset (required if mode=regenerate)
+# --beam_size INT         Beam size for inference (default: 10)
+# --batch_size INT        Batch size for inference (default: 128)
+# --device INT            Device ID (-1 for CPU) (default: -1)
+# --help                  Show this help message
+
+# Examples:
+   # Use existing results
+   # bash eval_sh/eval_uspto_condition_use_provided_ckpt.sh --result_dir ./results/full.json
+
+   # Regenerate results and evaluate
+   # bash eval_sh/eval_uspto_condition_use_provided_ckpt.sh --result_dir ./results/full.json --mode regenerate --checkpoint_dir ./checkpoint --data_path ./data/test.csv --beam_size 5
+```
+
 #### USPTO-500MT
 
 To reproduce the **training**, use the following command, where the `$data_path` here represents the folder containing the processed data.
@@ -184,6 +212,32 @@ To **evaluate** the results, use the following command, where `$input_file` is p
 
 ```shell
 python evaluate_500mt.py --file $input_file --beam $beam
+```
+If you want to directly use the checkpoint we provide for inference and view the results, please use the following bash scripts.
+```shell
+# Usage: eval_sh/eval_500mt_use_provided_ckpt.sh [OPTIONS]
+
+# This script performs inference and evaluation on the USPTO-500MT dataset.
+
+# Options:
+#  --result_dir PATH       Path to the output result file (required)
+#  --mode {regenerate,use_current}
+#                         Operation mode: 'regenerate' runs inference,
+#                         'use_current' only evaluates existing results.
+#                         (default: use_current)
+#  --checkpoint_dir PATH   Path to checkpoint directory containing model.pth and token.pkl (required if mode=regenerate)
+#  --data_path PATH        Path to test dataset file (required if mode=regenerate)
+#  --beam_size INT         Beam size for inference (default: 10)
+#  --batch_size INT        Batch size for inference (default: 128)
+#  --device INT            Device ID (-1 for CPU) (default: -1)
+#  --help                  Show this help message
+
+# Examples:
+  # Use existing results
+  # bash eval_sh/eval_500mt_use_provided_ckpt.sh --result_dir ./results/uspto_500mt_output.json
+  
+  # Regenerate results and evaluate
+  # eval_sh/eval_500mt_use_provided_ckpt.sh --result_dir ./results/uspto_500mt_output.json --mode regenerate --checkpoint_dir ./checkpoint --data_path ./data/test.json --beam_size 5
 ```
 
 ### Regression Tasks
@@ -330,4 +384,47 @@ For the OOD data splits, use the script below.
 #  --device INT            Device ID (-1 for CPU) (default: -1)
 #  --use_pretrain          Use pretrained condition encoder (flag)
 #  --help                  Show this help message
+```
+
+### Supplementary Tasks
+
+#### Yield Prediction on USPTO Yield
+
+**The dataset is processed under `rdkit 2025.03`, which has different SMILES parsing rule from the version provided in `environment.yml`. The experiment on USPTO Yield Dataset should be conducted on the environment created by the following command.**
+
+```shell
+conda env create -f rdkit2503.yml
+```
+
+To reproduce the **training**, use the following command, where `$data_path` is the path to the `jsonl` file containing the processed reactions from USPTO 1976-2016sep, (corresponding to the `Data\uspto-yield\all_data.jsonl` in Google Drive).
+
+```shell
+# for training on a single card
+python train_uspto_yield.py --data_path $data_path
+# for single machine multi card training
+python train_uspto_yield.py --data_path $data_path --num_gpus $ngpus --port $port
+```
+
+To remove the numerical conditions from the input, such as temperatures and amounts, use the following command
+
+```shell
+# for training on a single card
+python train_uspto_yield.py \
+  --data_path $data_path \
+  --temperature_class -1 \
+  --amount_class -1
+# for single machine multi card training
+python train_uspto_yield.py \
+  --data_path $data_path \
+  --num_gpus $ngpus \
+  --port $port \
+  --temperature_class -1 \
+  --amount_class -1
+```
+
+The default parameters provided in the single-machine multi-card training code are the parameters used to train the open-source weights. You can also run the following command to view all the parameters accepted by the script and make corresponding adjustments.
+
+```shell
+python train_uspto_yield.py -h
+python train_uspto_yield_ddp.py -h
 ```

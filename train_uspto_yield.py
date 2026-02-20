@@ -72,7 +72,7 @@ if __name__ == '__main__':
         help='the number for epochs for training'
     )
     parser.add_argument(
-        '--base_log', type=str, default='log_cn',
+        '--base_log', type=str, default='log_uspto_yield',
         help='the path for contraining log'
     )
     parser.add_argument(
@@ -100,16 +100,16 @@ if __name__ == '__main__':
         help='the random seed for training'
     )
     parser.add_argument(
-        '--local_heads', type=int, default=0,
+        '--local_heads', type=int, default=4,
         help='the number of local heads in attention'
     )
     parser.add_argument(
-        '--amount_class', type=int, default=-1,
+        '--amount_class', type=int, default=50,
         help='the number of class for amount embedding' +
         ' non-positive to disable the amount encoder'
     )
     parser.add_argument(
-        '--temperature_class', type=int, default=-1,
+        '--temperature_class', type=int, default=50,
         help='the number of class for temperature embedding' +
         ' non-positive to disable the temperature encoder'
     )
