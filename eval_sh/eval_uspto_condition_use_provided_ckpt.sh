@@ -18,9 +18,9 @@ Usage: $0 [OPTIONS]
 This script performs inference and evaluation on the USPTO-Condition dataset.
 
 Options:
-  --result_dir PATH       Directory to store results (required)
+  --result_dir PATH       Path to the output result file (e.g., ./results/full.json) (required)
   --mode {regenerate,use_current}
-                          Operation mode: 'regenerate' runs inference, 
+                          Operation mode: 'regenerate' runs inference,
                           'use_current' only evaluates existing results.
                           (default: use_current)
   --checkpoint_dir PATH   Path to checkpoint directory, containing model.pth and token.pkl (required if mode=regenerate)
@@ -32,10 +32,10 @@ Options:
 
 Examples:
   # Use existing results
-  $0 --result_dir ./results
+  $0 --result_dir ./results/full.json
 
   # Regenerate results and evaluate
-  $0 --result_dir ./results --mode regenerate --checkpoint_dir ./checkpoint --data_path ./data/test.csv --beam_size 5
+  $0 --result_dir ./results/full.json --mode regenerate --checkpoint_dir ./checkpoint --data_path ./data/test.csv --beam_size 5
 EOF
     exit 1
 }
@@ -101,23 +101,21 @@ if [[ "$mode" == "regenerate" ]]; then
         echo "Error: --data_path is required when mode=regenerate."
         usage
     fi
+    # 确保输出文件的父目录存在
+    output_dir=$(dirname "$result_dir")
+    if [[ ! -d "$output_dir" ]]; then
+        mkdir -p "$output_dir"
+    fi
 else  # use_current 模式
-    if [[ ! -d "$result_dir" ]]; then
-        echo "Error: result_dir '$result_dir' does not exist. Cannot use existing results."
-        usage
+    if [[ ! -f "$result_dir" ]]; then
+        echo "Error: result file '$result_dir' does not exist. Cannot use existing results."
+        exit 1
     fi
 fi
 
 # 获取脚本的绝对路径并确定 script_dir (脚本所在目录的父目录)
 script_path=$(realpath "$0")
-script_dir=$(dirname "$(dirname "$script_path")")  # 父目录的父目录？根据描述：脚本所在的文件夹的绝对路径的父级文件夹
-# 说明：假设脚本放在 /path/to/project/scripts/myscript.sh，则 script_dir = /path/to/project
-# 使用 dirname 两次：第一次得到 /path/to/project/scripts，第二次得到 /path/to/project
-# 确保 script_dir 存在
-if [[ ! -d "$script_dir" ]]; then
-    echo "Error: Cannot determine script directory parent."
-    exit 1
-fi
+script_dir=$(dirname "$(dirname "$script_path")")  # 父目录的父目录，通常为项目根目录
 
 # 如果是 regenerate 模式，运行推理
 if [[ "$mode" == "regenerate" ]]; then
@@ -148,12 +146,12 @@ fi
 
 # 运行评估
 echo "Evaluating results in $result_dir with beam size $beam_size"
-python "$script_dir/eval_condition.py" \
+python "$script_dir/evaluate_condition.py" \
     --file "$result_dir" \
     --beam "$beam_size"
 
 python "$script_dir/evaluate_pred_split.py" \
-    --file"$result_dir" \
+    --file "$result_dir" \
     --beam "$beam_size"
 
 echo "Done."

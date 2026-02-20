@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e  # 遇到错误立即退出
+set -e
 
 # 默认值
 mode="use_current"
@@ -10,7 +10,6 @@ result_dir=""
 checkpoint_dir=""
 data_path=""
 
-# 用法函数
 usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
@@ -18,7 +17,7 @@ Usage: $0 [OPTIONS]
 This script performs inference and evaluation on the USPTO-500MT dataset.
 
 Options:
-  --result_dir PATH       Directory to store results (required)
+  --result_dir PATH       Path to the output result file (required)
   --mode {regenerate,use_current}
                           Operation mode: 'regenerate' runs inference, 
                           'use_current' only evaluates existing results.
@@ -32,15 +31,14 @@ Options:
 
 Examples:
   # Use existing results
-  $0 --result_dir ./results
+  $0 --result_dir ./results/uspto_500mt_output.json
 
   # Regenerate results and evaluate
-  $0 --result_dir ./results --mode regenerate --checkpoint_dir ./checkpoint --data_path ./data/test.json --beam_size 5
+  $0 --result_dir ./results/uspto_500mt_output.json --mode regenerate --checkpoint_dir ./checkpoint --data_path ./data/test.json --beam_size 5
 EOF
     exit 1
 }
 
-# 解析命令行参数
 while [[ $# -gt 0 ]]; do
     case $1 in
         --result_dir)
@@ -85,13 +83,11 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# 检查必需参数
 if [[ -z "$result_dir" ]]; then
     echo "Error: --result_dir is required."
     usage
 fi
 
-# 根据模式进行参数验证
 if [[ "$mode" == "regenerate" ]]; then
     if [[ -z "$checkpoint_dir" ]]; then
         echo "Error: --checkpoint_dir is required when mode=regenerate."
@@ -101,7 +97,7 @@ if [[ "$mode" == "regenerate" ]]; then
         echo "Error: --data_path is required when mode=regenerate."
         usage
     fi
-    # 检查必要的模型文件是否存在（可选但推荐）
+    # 检查 checkpoint 文件是否存在
     if [[ ! -f "$checkpoint_dir/model.pth" ]]; then
         echo "Error: $checkpoint_dir/model.pth not found."
         exit 1
@@ -110,18 +106,21 @@ if [[ "$mode" == "regenerate" ]]; then
         echo "Error: $checkpoint_dir/token.pkl not found."
         exit 1
     fi
+    # 确保输出文件的父目录存在
+    output_dir=$(dirname "$result_dir")
+    if [[ ! -d "$output_dir" ]]; then
+        mkdir -p "$output_dir"
+    fi
 else  # use_current 模式
-    if [[ ! -d "$result_dir" ]]; then
-        echo "Error: result_dir '$result_dir' does not exist. Cannot use existing results."
-        usage
+    if [[ ! -f "$result_dir" ]]; then
+        echo "Error: result file '$result_dir' does not exist. Cannot use existing results."
+        exit 1
     fi
 fi
 
-# 获取脚本的绝对路径并确定 script_dir (脚本所在目录的父目录)
 script_path=$(realpath "$0")
-script_dir=$(dirname "$(dirname "$script_path")")  # 父目录的父目录，即项目根目录
+script_dir=$(dirname "$(dirname "$script_path")")
 
-# 如果是 regenerate 模式，运行推理
 if [[ "$mode" == "regenerate" ]]; then
     echo "Running inference with checkpoint $checkpoint_dir on data $data_path"
     python "$script_dir/inference_uspto_500mt.py" \
@@ -140,7 +139,6 @@ if [[ "$mode" == "regenerate" ]]; then
         --data_path "$data_path"
 fi
 
-# 运行评估
 echo "Evaluating results in $result_dir with beam size $beam_size"
 python "$script_dir/eval_500mt.py" \
     --file "$result_dir" \
