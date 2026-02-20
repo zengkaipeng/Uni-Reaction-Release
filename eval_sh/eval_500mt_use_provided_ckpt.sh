@@ -140,7 +140,7 @@ if [[ "$mode" == "regenerate" ]]; then
 fi
 
 echo "Evaluating results in $result_dir with beam size $beam_size"
-python "$script_dir/eval_500mt.py" \
+python "$script_dir/evaluate_500mt.py" \
     --file "$result_dir" \
     --beam "$beam_size"
 

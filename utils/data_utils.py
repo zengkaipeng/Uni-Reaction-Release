@@ -291,8 +291,10 @@ def load_uspto_yield(data_path, part='all'):
                 f"Must be 'train', 'val', 'test', or 'all'"
             )
 
-        filtered_data = [item for item in all_data if item.get(
-            'dataset') == part_lower]
+        filtered_data = [
+            item for item in all_data
+            if item.get('dataset') == part_lower
+        ]
 
         if not filtered_data:
             raise ValueError(f"No {part} data found in {data_path}")
