@@ -38,7 +38,7 @@ All checkpoints use the default parameters specified in the inference/training s
 
 ### Results
 
-We have uploaded the inference results for two sets of experiments that are relatively time-consuming, namely **USPTO-Condition** and **USPTO-500MT**, in the form of `json`. 我们同时也为regression tasks 提供了results，whose 文件夹遵循和  `Data` 以及 `Checkpoints` 相同的命名规律.
+We have uploaded the inference results for two sets of experiments that are relatively time-consuming, namely **USPTO-Condition** and **USPTO-500MT**, in the form of `json`. We also provide results for the regression tasks, and these folders follow the same naming convention as the `Data` and `Checkpoints` folders.
 
 ## Data Preprocess
 
