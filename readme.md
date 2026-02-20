@@ -2,7 +2,7 @@
 
 Official Implementation of paper:
 
-[A Unified Chemical Reaction Representation Learning Framework for Reaction Condition Recommendation and Performance Prediction](https://arxiv.org/abs/2411.17629)
+[A Foundational Chemical Reaction Representation Learning Framework for Reaction Condition Recommendation and Performance Prediction](https://arxiv.org/abs/2411.17629)
 
 ## Environment
 
@@ -23,20 +23,22 @@ All the data used for model training and the checkpoints we have trained can be 
 - **Buchwald-Hartwig cross-coupling reaction:** (corresponding to the `bh` folder)  The folder contains ten random splits and four OOD splits. Each split folder has three files representing the training, validation, and test sets.
 - **radical C–H functionalization:** (corresponding to the `hx` folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
 - **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `denmark` folder) The folder contains ten groups of random splits. The names of their subfolders indicate the random seeds used for the splits. Each split folder has three files representing the training, validation, and test sets.
+- **USPTO-yield:** The reaction yield prediction dataset collected from all the reaction in USPTO 1976-2016sep. The file is in form of `jsonl`, every line of the data is a reaction.
 
 ### Checkpoints
 
 - **USPTO-Condition:** The `model.pth` file represents the model weights, and the `pkl` file stores the reagent-index lookup table for easy metric calculation and validation.
 - **USPTO-500MT:** The `model.pth` file represents the model weights, and the `pkl` file stores the reagent-index lookup table for easy metric calculation and validation.
-- **Buchwald-Hartwig cross-coupling reaction:** (corresponding to the `cn` and `cn-nopretrain` folder) The folder contains checkpoints for each split. For OOD splits, we provide model weights trained with different random seeds.
+- **Buchwald-Hartwig cross-coupling reaction:** (corresponding to the `bh` folder) The folder contains checkpoints for each split. For OOD splits, we provide model weights trained with different random seeds.
 - **radical C–H functionalization:** (corresponding to the `hx` folder) Each split folder contains the model weights corresponding to that split.
-- **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `dm` and `dm-nopretrain` folder) Each split folder contains the model weights corresponding to that split.
+- **chiral phosphoric acid-catalyzed thiol addition:** (corresponding to the `denmark` folder) Each split folder contains the model weights corresponding to that split.
+- **USPTO-yield:** Two checkpoints are provided, one is trained with the numerical conditions, like reaction temperature and the reagent amounts, while another is trained without these numerical conditions.
 
-All checkpoints use the default parameters specified in the inference/training scripts. For the **Buchwald-Hartwig cross-coupling reaction** and **chiral phosphoric acid-catalyzed thiol addition** datasets, we provide two versions: one using a pretrained condition encoder and the other trained from scratch. You need to switch the model config as needed during inference. The model config is placed in the `config` folder.
+All checkpoints use the default parameters specified in the inference/training scripts. For the **Buchwald-Hartwig cross-coupling reaction** and **chiral phosphoric acid-catalyzed thiol addition** datasets, we provide two versions: one using a pretrained condition encoder and the other trained from scratch. You need to switch the model config of condition encoder as needed during inference. The model configs are placed in the `condition_config` folder.
 
 ### Results
 
-We have uploaded the inference results for two sets of experiments that are relatively time-consuming, namely **USPTO-Condition** and **USPTO-500MT**, in the form of `json`.
+We have uploaded the inference results for two sets of experiments that are relatively time-consuming, namely **USPTO-Condition** and **USPTO-500MT**, in the form of `json`. 我们同时也为regression tasks 提供了results，whose 文件夹遵循和  `Data` 以及 `Checkpoints` 相同的命名规律.
 
 ## Data Preprocess
 
