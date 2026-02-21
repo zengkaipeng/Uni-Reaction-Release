@@ -40,7 +40,7 @@ if __name__ == '__main__':
         help='the path of file containing the dataset'
     )
     parser.add_argument(
-        '--dim', type=int, default=512,
+        '--dim', type=int, default=256,
         help='the number of dim for model'
     )
     parser.add_argument(
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         help='the number of heads for model'
     )
     parser.add_argument(
-        '--n_layer', type=int, default=8,
+        '--n_layer', type=int, default=6,
         help='the number of layers of the model'
     )
     parser.add_argument(
@@ -56,7 +56,7 @@ if __name__ == '__main__':
         help='the dropout ratio for model'
     )
     parser.add_argument(
-        '--warmup', type=int, default=0,
+        '--warmup', type=int, default=10,
         help='the number of epochs for warmup'
     )
     parser.add_argument(
@@ -64,11 +64,11 @@ if __name__ == '__main__':
         help='the lr decay rate for training'
     )
     parser.add_argument(
-        '--lr', type=float, default=1e-3,
+        '--lr', type=float, default=1e-4,
         help='the learning rate for training'
     )
     parser.add_argument(
-        '--epoch', type=int, default=100,
+        '--epoch', type=int, default=200,
         help='the number for epochs for training'
     )
     parser.add_argument(
@@ -80,7 +80,7 @@ if __name__ == '__main__':
         help='the number of worker for dataloader'
     )
     parser.add_argument(
-        '--bs', type=int, default=64,
+        '--bs', type=int, default=256,
         help='the batch size for training'
     )
     parser.add_argument(
@@ -96,7 +96,7 @@ if __name__ == '__main__':
         help='the step to start lr decay'
     )
     parser.add_argument(
-        '--seed', type=int, default=2025,
+        '--seed', type=int, default=2026,
         help='the random seed for training'
     )
     parser.add_argument(
