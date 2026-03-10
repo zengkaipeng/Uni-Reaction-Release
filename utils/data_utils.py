@@ -10,6 +10,7 @@ from .Dataset import (
     CNYieldDataset, SelDataset, ReactionPredDataset,
     ReactionSeqInferenceDataset
 )
+from .uspto_ds import USPTOYieldDataset
 
 from .tokenlizer import Tokenizer, smi_tokenizer
 

@@ -430,3 +430,45 @@ The default parameters provided in the single-machine multi-card training code a
 python train_uspto_yield.py -h
 python train_uspto_yield_ddp.py -h
 ```
+
+To **inference and evaluate** the result, use the following command, where `$data_path` is the path to the `jsonl` file and `$checkpoint` is the path to the checkpoint. The script will output a JSON containing predictions and labels.
+
+```shell
+python predict_uspto_yield.py \
+  --data_path $data_path \
+  --checkpoint $checkpoint \
+  --output_path $output_path \
+  --part test
+```
+
+#### Fast Evaluation Using the Provided Checkpoints
+
+If you want to directly use the checkpoints we provide for ablation study and view the results, please use the following bash script.
+
+```shell
+# Usage: eval_sh/eval_uspto_yeild_use_provided_ckpt.sh [OPTIONS]
+
+# This script performs inference and evaluation on USPTO-Yield using four fixed
+# ablation checkpoints. It reports MAE, RMSE, and R2 for each checkpoint and
+# prints a summary table (no mean/std). Missing checkpoints are skipped.
+# Each result is saved to result_dir/{ckpt_name}.json.
+
+# Options:
+#  --result_dir PATH       Directory to store results (required)
+#  --checkpoint_dir PATH   Path to directory containing .pth checkpoint files (required)
+#  --data_path PATH        Path to USPTO-Yield JSONL file (required)
+#  --batch_size INT        Batch size for inference (default: 512)
+#  --device INT            Device ID (-1 for CPU) (default: -1)
+
+# Checkpoints (fixed names expected):
+#  - wo_amount_wo_temperature.pth          (amount_class = -1, temperature_class = -1)
+#  - with_amount_wo_temperature.pth        (amount_class = 50, temperature_class = -1)
+#  - wo_amount_with_temperature.pth        (amount_class = -1, temperature_class = 50)
+#  - with_amount_with_temperature.pth      (amount_class = 50, temperature_class = 50)
+
+# Example:
+# bash eval_sh/eval_uspto_yeild_use_provided_ckpt.sh \
+#   --result_dir ./results/uspto_yield \
+#   --checkpoint_dir ./checkpoints/uspto_yield \
+#   --data_path ./data/uspto-yield/alldata_nodup.jsonl
+```

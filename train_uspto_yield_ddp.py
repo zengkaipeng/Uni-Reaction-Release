@@ -267,85 +267,85 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parser for prediction model')
     parser.add_argument(
         '--data_path', required=True, type=str,
-        help='the path of file containing the dataset'
+        help='the path of file containing the dataset (required)'
     )
     parser.add_argument(
-        '--dim', type=int, default=384,
-        help='the number of dim for model'
+        '--dim', type=int, default=192,
+        help='the number of dim for model (default: 192)'
     )
     parser.add_argument(
-        '--heads', type=int, default=8,
-        help='the number of heads for model'
+        '--heads', type=int, default=6,
+        help='the number of heads for model (default: 6)'
     )
     parser.add_argument(
         '--n_layer', type=int, default=6,
-        help='the number of layers of the model'
+        help='the number of layers of the model (default: 6)'
     )
     parser.add_argument(
         '--dropout', type=float, default=0.1,
-        help='the dropout ratio for model'
+        help='the dropout ratio for model (default: 0.1)'
     )
     parser.add_argument(
         '--warmup', type=int, default=10,
-        help='the number of epochs for warmup'
+        help='the number of epochs for warmup (default: 10)'
     )
     parser.add_argument(
-        '--lrgamma', type=float, default=0.995,
-        help='the lr decay rate for training'
+        '--lrgamma', type=float, default=0.997,
+        help='the lr decay rate for training (default: 0.997)'
     )
     parser.add_argument(
         '--lr', type=float, default=1e-4,
-        help='the learning rate for training'
+        help='the learning rate for training (default: 1e-4)'
     )
     parser.add_argument(
         '--epoch', type=int, default=200,
-        help='the number for epochs for training'
+        help='the number for epochs for training (default: 200)'
     )
     parser.add_argument(
-        '--base_log', type=str, default='log_uspto_yield_ddp',
+        '--base_log', type=str, default='log_uspto_yield',
         help='the path for contraining log'
     )
     parser.add_argument(
         '--num_worker', type=int, default=8,
-        help='the number of worker for dataloader'
+        help='the number of worker for dataloader (default: 8)'
     )
     parser.add_argument(
-        '--bs', type=int, default=256,
-        help='the batch size for training'
+        '--bs', type=int, default=512,
+        help='the batch size for training (default: 512)'
     )
     parser.add_argument(
         '--negative_slope', type=float, default=0.2,
-        help='the negative slope of model'
+        help='the negative slope of model (default: 0.2)'
     )
     parser.add_argument(
-        '--step_start', type=int, default=10,
-        help='the step to start lr decay'
+        '--step_start', type=int, default=15,
+        help='the step to start lr decay (default: 15)'
     )
     parser.add_argument(
         '--seed', type=int, default=2026,
-        help='the random seed for training'
+        help='the random seed for training (default: 2026)'
     )
     parser.add_argument(
-        '--local_heads', type=int, default=4,
-        help='the number of local heads in attention'
+        '--local_heads', type=int, default=2,
+        help='the number of local heads in attention (default: 2)'
     )
     parser.add_argument(
         '--amount_class', type=int, default=50,
         help='the number of class for amount embedding' +
-        ' non-positive to disable the amount encoder'
+        ' non-positive to disable the amount encoder (default: 50)'
     )
     parser.add_argument(
-        '--temperature_class', type=int, default=50,
+        '--temperature_class', type=int, default=-1,
         help='the number of class for temperature embedding' +
-        ' non-positive to disable the temperature encoder'
+        ' non-positive to disable the temperature encoder (default: -1)'
     )
     parser.add_argument(
-        '--num_gpus', type=int, default=8,
-        help='the number of gpus to run exp'
+        '--num_gpus', type=int, default=4,
+        help='the number of gpus to run exp (default: 4)'
     )
     parser.add_argument(
-        '--port', type=int, default=12345,
-        help='the port id for ddp communications'
+        '--port', type=int, default=13487,
+        help='the port id for ddp communications (default: 13487)'
     )
 
     args = parser.parse_args()

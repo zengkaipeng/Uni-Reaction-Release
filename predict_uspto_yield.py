@@ -23,59 +23,59 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parser for USPTO-yield inference')
     parser.add_argument(
         '--data_path', required=True, type=str,
-        help='path to the JSONL dataset file'
+        help='path to the JSONL dataset file (required)'
     )
     parser.add_argument(
         '--checkpoint', required=True, type=str,
-        help='checkpoint path for model weights'
+        help='checkpoint path for model weights (required)'
     )
     parser.add_argument(
         '--output_path', required=True, type=str,
-        help='path to write JSON results'
+        help='path to write JSON results (required)'
     )
     parser.add_argument(
         '--part', type=str, default='test',
-        help="dataset split to evaluate: 'train', 'val', or 'test'"
+        help="dataset split to evaluate: 'train', 'val', or 'test' (default: test)"
     )
     parser.add_argument(
-        '--dim', type=int, default=256,
-        help='model hidden dimension'
+        '--dim', type=int, default=192,
+        help='model hidden dimension (default: 192)'
     )
     parser.add_argument(
-        '--heads', type=int, default=8,
-        help='number of attention heads'
+        '--heads', type=int, default=6,
+        help='number of attention heads (default: 6)'
     )
     parser.add_argument(
         '--n_layer', type=int, default=6,
-        help='number of encoder layers'
+        help='number of encoder layers (default: 6)'
     )
     parser.add_argument(
         '--num_worker', type=int, default=8,
-        help='dataloader worker count'
+        help='dataloader worker count (default: 8)'
     )
     parser.add_argument(
-        '--bs', type=int, default=256,
-        help='batch size for inference'
+        '--bs', type=int, default=512,
+        help='batch size for inference (default: 512)'
     )
     parser.add_argument(
         '--negative_slope', type=float, default=0.2,
-        help='negative slope for leaky relu'
+        help='negative slope for leaky relu (default: 0.2)'
     )
     parser.add_argument(
         '--device', type=int, default=0,
-        help='device id, negative for CPU'
+        help='device id, negative for CPU (default: 0)'
     )
     parser.add_argument(
-        '--local_heads', type=int, default=4,
-        help='number of local heads in attention'
+        '--local_heads', type=int, default=2,
+        help='number of local heads in attention (default: 2)'
     )
     parser.add_argument(
         '--amount_class', type=int, default=50,
-        help='class count for amount embedding; <=0 disables'
+        help='class count for amount embedding; <=0 disables (default: 50)'
     )
     parser.add_argument(
-        '--temperature_class', type=int, default=50,
-        help='class count for temperature embedding; <=0 disables'
+        '--temperature_class', type=int, default=-1,
+        help='class count for temperature embedding; <=0 disables (default: -1)'
     )
 
     args = parser.parse_args()
