@@ -2,7 +2,7 @@
 
 Official Implementation of paper:
 
-[A Foundational Chemical Reaction Representation Learning Framework for Reaction Condition Recommendation and Performance Prediction](https://arxiv.org/abs/2411.17629)
+[A general-purpose framework for chemical reaction representation with atomic correspondence and flexible condition adaptation](https://doi.org/10.1186/s13321-026-01201-w)
 
 ## Environment
 
